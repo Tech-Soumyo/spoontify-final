@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://spotify2_owner:npg_Zn1DAWu0oyim@ep-raspy-dawn-a13p03mt-pooler.ap-southeast-1.aws.neon.tech/spotify2?sslmode=require"
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+model User {
+  id                  String            @id @default(uuid())
+  name                String
+  email               String?           @unique
+  phone               String?
+  password            String?
+  spotifyId           String?           @unique
+  spotifyName         String?
+  spotifyEmail        String?
+  premium             Boolean           @default(false)
+  spotifyAccessToken  String?
+  spotifyRefreshToken String?
+  tokenExpiresAt      DateTime?
+  ownedRooms          Room[]            @relation("RoomOwner")
+  participatedRooms   RoomParticipant[]
+  addedQueueEntries   QueueEntry[]
+
+  @@index([email])
+  @@index([spotifyId])
+}
+
+model Room {
+  id                String            @id @default(uuid())
+  roomCode          String            @unique
+  ownerId           String
+  currentTrackIndex Int?              @default(0)
+  owner             User              @relation("RoomOwner", fields: [ownerId], references: [id])
+  participants      RoomParticipant[]
+  queue             QueueEntry[]
+  createdAt         DateTime          @default(now())
+
+  @@index([roomCode])
+}
+
+model RoomParticipant {
+  userId String
+  roomId String
+  user   User   @relation(fields: [userId], references: [id])
+  room   Room   @relation(fields: [roomId], references: [id])
+
+  @@id([userId, roomId])
+  @@index([userId])
+  @@index([roomId])
+}
+
+model QueueEntry {
+  id         String  @id @default(uuid())
+  roomId     String
+  trackId    String // Spotify track ID
+  songName   String // Song name
+  artistName Json // Primary artist name (could be a JSON array if multiple)
+  albumName  String // Album name
+  imageUrl   String? @db.VarChar(2048) // URL to album art/song picture
+  addedById  String
+  position   Int // Order in the queue  
+  room       Room    @relation(fields: [roomId], references: [id])
+  addedBy    User    @relation(fields: [addedById], references: [id])
+
+  @@unique([roomId, position])
+  @@index([roomId])
+}
