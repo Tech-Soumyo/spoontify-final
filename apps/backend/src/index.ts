@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import { prisma } from "@repo/db";
 import http from "http";
-// import io from "./lib/socket";
+import { io } from "./lib/socket";
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -17,7 +17,7 @@ app.use(
     origin: "*",
   })
 );
-// io.attach(server);
+io.attach(server);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -25,7 +25,7 @@ app.get("/api/health", (_req, res) => {
 
 server.listen(port, async () => {
   const user = await prisma.user.findFirst();
-  console.log(user?.id);
+  // console.log(user?.id);
   console.log(user?.email);
   console.log(`Express server listening on port ${port}`);
 });
