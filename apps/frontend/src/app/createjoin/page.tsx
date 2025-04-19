@@ -1,4 +1,5 @@
 "use client";
+import { useSocket } from "@/hooks/Socket/useSocket.hook";
 // import { useSocket } from "@/hooks/useSocket2";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -10,39 +11,28 @@ export default function CreateJoinRoom() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  //   const { socket } = useSocket();
+  const { socket, createRoom, handleJoinRoom } = useSocket();
 
-  //   const handleCreateRoom = () => {
-  //     if (!session?.user?.spotifyId && session?.user?.isPremium != true) {
-  //       setError("For Room Creation, First do Spotify Login.");
-  //       return;
-  //     }
-  //     // Room creation logic (redirect to room page)
-  //     setLoading(true);
-  //     if (!socket) return;
-  //     socket?.emit("createRoom", (response: any) => {
-  //       setLoading(false);
-  //       if (response.error) {
-  //         setError(response.error);
-  //       } else if (response.roomCode) {
-  //         router.push(`/joinedRoom/${response.roomCode}`);
-  //       }
-  //     });
-  //   };
+  const handleCreateRoom = () => {
+    if (!session?.user?.spotifyId && session?.user?.isPremium !== true) {
+      setError("For Room Creation, First do Spotify Login.");
+      return;
+    }
+    setLoading(true);
+    createRoom();
+  };
 
-  //   const handleJoinRoom = async () => {
-  //     if (!roomCode) return;
-
-  //     setLoading(true);
-  //     socket?.emit("joinRoom", roomCode, (response: any) => {
-  //       setLoading(false);
-  //       if (response.error) {
-  //         setError(response.error);
-  //       } else if (response.success) {
-  //         router.push(`/joinedRoom/${roomCode}`);
-  //       }
-  //     });
-  //   };
+  const handleJoiningRoom = async () => {
+    if (!roomCode) return;
+    setLoading(true);
+    try {
+      await handleJoinRoom(roomCode);
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
@@ -71,7 +61,7 @@ export default function CreateJoinRoom() {
         />
         <button
           className="p-2 bg-green-500 text-white rounded w-full mb-3"
-          onClick={() => {}}
+          onClick={handleJoiningRoom}
           disabled={loading || !roomCode}
         >
           {loading ? "Joining..." : "Join Room"}
@@ -80,17 +70,18 @@ export default function CreateJoinRoom() {
         {/* Create Room + Spotify Login */}
         <div className="flex gap-3">
           <button
-            onClick={() => {}}
+            onClick={handleCreateRoom}
             className={`p-2 text-white rounded flex-1 ${
               session?.user?.spotifyId
                 ? "bg-blue-500 hover:bg-blue-600"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
             disabled={
-              !session?.user?.spotifyId && session?.user?.isPremium != true
+              loading ||
+              (!session?.user?.spotifyId && session?.user?.isPremium !== true)
             }
           >
-            Create Room
+            {loading ? "Creating..." : "Create Room"}
           </button>
           <button
             onClick={() => signIn("spotify")}
