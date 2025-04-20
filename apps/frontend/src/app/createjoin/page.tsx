@@ -1,9 +1,10 @@
 "use client";
-import { useSocket } from "@/hooks/Socket/useSocket.hook";
+import { SocketResponse, useSocket } from "@/hooks/Socket/useSocket.hook";
 // import { useSocket } from "@/hooks/useSocket2";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function CreateJoinRoom() {
   const { data: session } = useSession();
@@ -11,14 +12,20 @@ export default function CreateJoinRoom() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { socket, createRoom, handleJoinRoom } = useSocket();
+  const {
+    socket,
+    createRoom,
+    handleJoinRoom,
+    setIsOwner,
+    setConnectedUsers,
+    connectedUsers,
+  } = useSocket();
 
   const handleCreateRoom = () => {
     if (!session?.user?.spotifyId && session?.user?.isPremium !== true) {
       setError("For Room Creation, First do Spotify Login.");
       return;
     }
-    setLoading(true);
     createRoom();
   };
 
@@ -70,7 +77,10 @@ export default function CreateJoinRoom() {
         {/* Create Room + Spotify Login */}
         <div className="flex gap-3">
           <button
-            onClick={handleCreateRoom}
+            onClick={() => {
+              handleCreateRoom();
+              console.log("connectedUsers" + JSON.stringify(connectedUsers));
+            }}
             className={`p-2 text-white rounded flex-1 ${
               session?.user?.spotifyId
                 ? "bg-blue-500 hover:bg-blue-600"
