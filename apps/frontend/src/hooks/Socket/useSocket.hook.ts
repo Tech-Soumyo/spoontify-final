@@ -1,4 +1,4 @@
-"use clent";
+"use client";
 import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
@@ -57,7 +57,6 @@ export const useSocket = (roomCode?: string) => {
 
     socketRef.current = socketInstance;
 
-    // Send heartbeat every 30 seconds
     const heartbeatInterval = setInterval(() => {
       socketInstance.emit("heartbeat");
     }, 30000);
@@ -89,38 +88,58 @@ export const useSocket = (roomCode?: string) => {
       name: string;
     }) => {
       toast.info(`${name} left the room`);
+      setConnectedUsers((prev) => prev.filter((u) => u.id !== userId));
+    };
+
+    const handleParticipantsUpdated = (
+      participants: { id: string; name: string }[]
+    ) => {
+      console.log("Received participantsUpdated:", participants);
+      setConnectedUsers(participants);
     };
 
     socketInstance.on("connect", () => console.log("Socket connected"));
     socketInstance.on("userJoined", handleUserJoined);
-    socketInstance.on("participantsUpdated", setConnectedUsers);
+    socketInstance.on("participantsUpdated", handleParticipantsUpdated);
     socketInstance.on("roomClosed", handleRoomClosed);
     socketInstance.on("userLeft", handleUserLeft);
 
-    return () => {
-      // Clear all intervals
-      clearInterval(heartbeatInterval);
+    // Join the room if roomCode is provided
+    if (roomCode) {
+      socketInstance.emit("joinRoom", roomCode, (response: SocketResponse) => {
+        if (response.error) {
+          console.error("Join room error:", response.error);
+          setError(response.error);
+        } else {
+          setConnectedUsers(response.participants || []);
+          setIsOwner(response.isOwner || false);
+        }
+      });
+    }
 
-      // Remove specific listeners
+    return () => {
+      clearInterval(heartbeatInterval);
       socketInstance.off("connect");
       socketInstance.off("userJoined", handleUserJoined);
-      socketInstance.off("userLeft", handleUserLeft);
-      socketInstance.off("participantsUpdated", setConnectedUsers);
+      socketInstance.off("participantsUpdated", handleParticipantsUpdated);
       socketInstance.off("roomClosed", handleRoomClosed);
-
+      socketInstance.off("userLeft", handleUserLeft);
       socketInstance.disconnect();
     };
   }, [isSessionReady, session, roomCode, router]);
+
+  useEffect(() => {
+    console.log("Updated connectedUsers in useSocket:", connectedUsers);
+    console.log("Connected users length in useSocket:", connectedUsers.length);
+  }, [connectedUsers]);
 
   const createRoom = () => {
     if (!socketRef.current) {
       toast.error("Socket not initialized");
       return;
     }
-
     setLoading(true);
     setError("");
-
     socketRef.current.emit("createRoom", (response: SocketResponse) => {
       setLoading(false);
       if (response.error) {
@@ -131,22 +150,21 @@ export const useSocket = (roomCode?: string) => {
         setConnectedUsers([
           {
             id: session?.user?.userId as string,
-            name: session?.user?.name || "Owner",
+            name: session?.user?.name as string,
           },
         ]);
         router.push(`/joinedRoom/${response.roomCode}`);
       }
     });
   };
+
   const handleJoinRoom = async (joinRoomCode: string) => {
     if (!joinRoomCode || !socketRef.current) {
       toast.error("Socket not initialized or no room code provided");
       return;
     }
-
     setLoading(true);
     setError("");
-
     return new Promise((resolve, reject) => {
       socketRef.current!.emit(
         "joinRoom",
@@ -172,17 +190,12 @@ export const useSocket = (roomCode?: string) => {
       );
     });
   };
+
   const leaveRoom = (roomCode: string | undefined) => {
-    if (!socketRef.current) {
-      toast.error("Socket not connected");
+    if (!socketRef.current || !roomCode) {
+      toast.error("Socket not connected or no room code provided");
       return;
     }
-
-    if (!roomCode) {
-      toast.error("No room code provided");
-      return;
-    }
-
     socketRef.current.emit(
       "leaveRoom",
       roomCode,
@@ -196,10 +209,13 @@ export const useSocket = (roomCode?: string) => {
       }
     );
   };
+
   return {
     socket: socketRef.current,
     isOwner,
+    setIsOwner,
     connectedUsers,
+    setConnectedUsers,
     error,
     setError,
     loading,
