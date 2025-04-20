@@ -42,17 +42,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <Button
-        onClick={() => {
-          console.log("Current users:", users);
-          console.log("Connected users from props:", connectedUsers);
-        }}
-        variant="outline"
-        className="mr-4"
-      >
-        Show Users
-      </Button>
-
-      <Button
         onClick={onLeave}
         variant="destructive"
         className="bg-red-500 hover:bg-red-600"
