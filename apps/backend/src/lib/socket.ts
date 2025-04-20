@@ -81,8 +81,6 @@ export const io = new Server<ClientToServerEvents, ServerToClientEvents>({
 });
 
 // Connection tracking with rate limiting
-const connectionCounts = new Map<string, number>();
-const CONNECTION_LIMIT = 10;
 
 // Heartbeat tracking for all connected users
 const heartbeats = new Map<string, Date>();
@@ -109,14 +107,14 @@ const activeRooms = new Set<string>();
 
         // Rate limiting
         const userId = sessionUserData.userId;
-        const count = connectionCounts.get(userId) || 0;
+        // const count = connectionCounts.get(userId) || 0;
 
-        if (count >= CONNECTION_LIMIT) {
-          console.warn(`Rate limit exceeded for user ${userId}`);
-          return next(new Error("Rate limit exceeded"));
-        }
+        // if (count >= CONNECTION_LIMIT) {
+        //   console.warn(`Rate limit exceeded for user ${userId}`);
+        //   return next(new Error("Rate limit exceeded"));
+        // }
 
-        connectionCounts.set(userId, count + 1);
+        // connectionCounts.set(userId, count + 1);
 
         // Store user data for later use
         (socket.data as SocketData).user = sessionUserData;
@@ -127,95 +125,6 @@ const activeRooms = new Set<string>();
         next(new Error("Authentication failed"));
       }
     });
-
-    // Create a single cleanup interval for the entire server
-    if (!cleanupIntervalId) {
-      cleanupIntervalId = setInterval(
-        async () => {
-          const now = new Date();
-          const inactivityThreshold = 3 * 60 * 1000; // 3 minutes
-
-          // Get a snapshot of the current heartbeats to avoid mutation during iteration
-          const currentHeartbeats = new Map(heartbeats);
-
-          for (const [uid, lastBeat] of currentHeartbeats.entries()) {
-            if (now.getTime() - lastBeat.getTime() > inactivityThreshold) {
-              try {
-                await cleanupUser(uid, "inactivity");
-                // Remove from heartbeats map after cleanup is complete
-                heartbeats.delete(uid);
-              } catch (err) {
-                console.error(
-                  `❌ Error cleaning up inactive user ${uid}:`,
-                  err
-                );
-              }
-            }
-          }
-        },
-        3 * 60 * 1000
-      ); // Run every 3 minutes
-    }
-
-    // Helper function to clean up user resources
-    async function cleanupUser(userId: string, reason: string) {
-      const userRooms = await prisma.roomParticipant.findMany({
-        where: { userId },
-        include: {
-          room: true,
-          user: true,
-        },
-      });
-
-      for (const participation of userRooms) {
-        const roomCode = participation.room.roomCode;
-
-        // If owner, close the entire room
-        if (participation.room.ownerId === userId) {
-          await prisma.$transaction([
-            prisma.queueEntry.deleteMany({
-              where: { roomId: participation.roomId },
-            }),
-            prisma.roomParticipant.deleteMany({
-              where: { roomId: participation.roomId },
-            }),
-            prisma.room.delete({ where: { id: participation.roomId } }),
-          ]);
-
-          io.to(roomCode).emit("roomClosed", {
-            message: `Room closed due to owner ${reason}`,
-          });
-
-          // Remove from active rooms tracking
-          activeRooms.delete(roomCode);
-        } else {
-          // Just remove the participant
-          await prisma.roomParticipant.delete({
-            where: { userId_roomId: { userId, roomId: participation.roomId } },
-          });
-
-          // Get updated participants
-          const updatedParticipants = await prisma.roomParticipant.findMany({
-            where: { roomId: participation.roomId },
-            include: { user: { select: { id: true, name: true } } },
-          });
-
-          const participantData = updatedParticipants.map((p) => ({
-            id: p.user.id,
-            name: p.user.name,
-          }));
-
-          // Notify room of participant leaving and update participant list
-          io.to(roomCode).emit("userLeft", {
-            userId,
-            name: participation.user.name,
-            reason,
-          });
-
-          io.to(roomCode).emit("participantsUpdated", participantData);
-        }
-      }
-    }
 
     io.on("connection", (socket) => {
       const user = (socket.data as SocketData).user;
@@ -421,14 +330,6 @@ const activeRooms = new Set<string>();
           }
         }
       );
-    });
-
-    // Clean up the interval when the process exits
-    process.on("SIGINT", () => {
-      if (cleanupIntervalId) {
-        clearInterval(cleanupIntervalId);
-      }
-      process.exit(0);
     });
 
     console.log("🚀 Socket.IO server started successfully");
