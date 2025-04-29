@@ -16,7 +16,14 @@ export default async function handler(
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { accessToken, refreshToken } = req.body;
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+  if (!user) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const { accessToken, refreshToken, expiresAt } = req.body;
 
   if (!accessToken) {
     return res.status(400).json({ error: "Missing accessToken" });
@@ -29,7 +36,7 @@ export default async function handler(
       data: {
         spotifyAccessToken: accessToken,
         ...(refreshToken && { spotifyRefreshToken: refreshToken }),
-        tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // 1 hour from now
+        tokenExpiresAt: new Date(expiresAt), // 1 hour from now
       },
     });
 
