@@ -1,6 +1,14 @@
 import axios from "axios";
 
-async function refreshSpotifyToken(refreshToken: string) {
+type SpotifyRefreshResponse = {
+  accessToken: string;
+  accessTokenExpires: number;
+  refreshToken: string;
+} | null;
+
+async function refreshSpotifyToken(
+  refreshToken: string
+): Promise<SpotifyRefreshResponse> {
   try {
     const response = await axios.post(
       "https://accounts.spotify.com/api/token",
@@ -20,6 +28,11 @@ async function refreshSpotifyToken(refreshToken: string) {
 
     const refreshedTokens = response.data;
 
+    if (!refreshToken) {
+      console.error("Missing refresh token");
+      return null;
+    }
+
     return {
       accessToken: refreshedTokens.access_token,
       accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000, // Expires in milliseconds
@@ -28,7 +41,7 @@ async function refreshSpotifyToken(refreshToken: string) {
   } catch (error: any) {
     console.error(
       "Error refreshing Spotify token:",
-      error.response?.data || error.message
+      error.response?.data?.error || error.message
     );
     return null;
   }
