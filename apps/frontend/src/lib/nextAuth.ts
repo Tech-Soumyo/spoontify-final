@@ -1,4 +1,3 @@
-// Fixed typo
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 import { getSpotifyUser } from "@/hooks/useSpotifyUser";
 
@@ -7,7 +6,7 @@ import SpotifyAuth from "@/providers/spotify.provider";
 import { SpotifyUserData } from "@/types/user.type";
 
 import { prisma } from "@repo/db";
-import { NextAuthOptions } from "next-auth";
+import { DefaultSession, NextAuthOptions } from "next-auth";
 
 declare module "next-auth/jwt" {
   interface JWT {
@@ -37,7 +36,7 @@ declare module "next-auth" {
       spotifyName?: string | null;
       spotifyEmail?: string | null;
       isPremium?: boolean;
-    };
+    } & DefaultSession["user"];
   }
 }
 
@@ -83,7 +82,7 @@ export const authOptions: NextAuthOptions = {
               token.spotifyProduct = spoontifyUser.premium;
             }
           } catch (error) {
-            console.error("Failed to fetch or update Spotify user data", error);
+            console.log("Failed to fetch or update Spotify user data", error);
             token.error = "SpotifyUserSyncError";
           }
         }
@@ -91,7 +90,7 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Check if token is expired
-      if (Date.now() < (token.accessTokenExpires ?? 0)) {
+      if (Date.now() < (token.accessTokenExpires ?? 0) - 5 * 60 * 1000) {
         return token;
       }
 
@@ -106,7 +105,7 @@ export const authOptions: NextAuthOptions = {
           token.refreshToken as string
         );
         if (!retryToken) {
-          console.error("Retry also failed");
+          console.log("Retry also failed");
           return { ...token, error: "RefreshAccessTokenError" };
         }
         return { ...token, ...retryToken };
@@ -117,14 +116,19 @@ export const authOptions: NextAuthOptions = {
       token.refreshToken = refreshedToken.refreshToken;
 
       // Persist refreshed tokens to database
-      await prisma.user.update({
-        where: { email: token.email! },
-        data: {
-          spotifyAccessToken: refreshedToken.accessToken,
-          spotifyRefreshToken: refreshedToken.refreshToken,
-          tokenExpiresAt: new Date(refreshedToken.accessTokenExpires),
-        },
-      });
+      try {
+        await prisma.user.update({
+          where: { email: token.email! },
+          data: {
+            spotifyAccessToken: refreshedToken.accessToken,
+            spotifyRefreshToken: refreshedToken.refreshToken,
+            tokenExpiresAt: new Date(refreshedToken.accessTokenExpires),
+          },
+        });
+      } catch (error) {
+        console.log("Failed to persist refreshed tokens:", error);
+        token.error = "DatabaseUpdateError";
+      }
 
       return token;
     },
@@ -144,6 +148,7 @@ export const authOptions: NextAuthOptions = {
             spotifyId: spoontifyUser.spotifyId,
             spotifyName: spoontifyUser.spotifyName,
           };
+          session.expires = spoontifyUser.tokenExpiresAt?.getTime().toString()!;
         } else {
           console.warn("User not found in DB, returning fallback session.");
           session.user = {
@@ -156,11 +161,12 @@ export const authOptions: NextAuthOptions = {
       }
       session.accessToken = token.accessToken;
       session.refreshToken = token.refreshToken;
+
       if (token.error) {
         session.error = token.error;
       }
 
-      console.info("[NextAuth] Session created:", session);
+      // console.info("[NextAuth] Session created:", session);
       return session;
     },
     async redirect({ url, baseUrl }) {
