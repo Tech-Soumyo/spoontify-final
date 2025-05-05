@@ -21,36 +21,6 @@ type LeaveRoomCallback = (response: {
   message?: string;
 }) => void;
 
-type ServerToClientEvents = {
-  userJoined: (data: { userId: string; name: string }) => void;
-  userLeft: (data: { userId: string; name: string; reason?: string }) => void;
-  participantsUpdated: (participants: { id: string; name: string }[]) => void;
-  roomClosed: (data: { message: string }) => void;
-};
-
-type ClientToServerEvents = {
-  createRoom: (
-    callback: (response: {
-      error?: string;
-      code?: string;
-      roomCode?: string;
-      isOwner?: boolean;
-      ownerId?: string;
-    }) => void
-  ) => void;
-  joinRoom: (
-    roomCode: string,
-    callback: (response: {
-      error?: string;
-      code?: string;
-      participants?: { id: string; name: string }[];
-      isOwner?: boolean;
-    }) => void
-  ) => void;
-  leaveRoom: (roomCode: string, callback: LeaveRoomCallback) => void;
-  heartbeat: () => void;
-};
-
 type SocketData = {
   user: SpotifyUserData;
 };
@@ -70,7 +40,7 @@ export type track = {
   duration: number;
 };
 
-export const io = new Server<ClientToServerEvents, ServerToClientEvents>({
+export const io = new Server({
   cors: {
     origin: process.env.FRONTEND_URL || "*",
     methods: ["GET", "POST"],
@@ -80,13 +50,8 @@ export const io = new Server<ClientToServerEvents, ServerToClientEvents>({
   pingTimeout: 60000,
 });
 
-// Connection tracking with rate limiting
-
 // Heartbeat tracking for all connected users
 const heartbeats = new Map<string, Date>();
-
-// Single global cleanup interval rather than per-connection
-let cleanupIntervalId: NodeJS.Timeout | null = null;
 
 // Track active rooms for easier reference
 const activeRooms = new Set<string>();
@@ -105,17 +70,6 @@ const activeRooms = new Set<string>();
           return next(new Error("Unauthorized"));
         }
 
-        // Rate limiting
-        const userId = sessionUserData.userId;
-        // const count = connectionCounts.get(userId) || 0;
-
-        // if (count >= CONNECTION_LIMIT) {
-        //   console.warn(`Rate limit exceeded for user ${userId}`);
-        //   return next(new Error("Rate limit exceeded"));
-        // }
-
-        // connectionCounts.set(userId, count + 1);
-
         // Store user data for later use
         (socket.data as SocketData).user = sessionUserData;
 
@@ -129,7 +83,6 @@ const activeRooms = new Set<string>();
     io.on("connection", (socket) => {
       const user = (socket.data as SocketData).user;
       const userId = user.userId;
-      // console.log(`🔌 User connected: ${user.name} (${userId})`);
 
       // Initialize heartbeat for this connection
       heartbeats.set(userId, new Date());
@@ -330,6 +283,25 @@ const activeRooms = new Set<string>();
           }
         }
       );
+
+      socket.on("queueUpdated", ({ roomCode, queue }) => {
+        io.to(roomCode).emit("queueUpdated", { queue });
+      });
+
+      socket.on(
+        "playbackUpdate",
+        ({ roomCode, currentTrack, isPlaying, playbackProgress }) => {
+          socket.to(roomCode).emit("playbackUpdate", {
+            currentTrack,
+            isPlaying,
+            playbackProgress,
+          });
+        }
+      );
+
+      socket.on("queueEmpty", ({ roomCode }) => {
+        io.to(roomCode).emit("queueEmpty");
+      });
     });
 
     console.log("🚀 Socket.IO server started successfully");
