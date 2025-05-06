@@ -7,7 +7,7 @@ import { useSocket } from "@/hooks/Socket/useSocket.hook";
 import { track } from "@/types/song.type";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
@@ -36,6 +36,7 @@ export default function JoinedRoomPage() {
   const [currentTrack, setCurrentTrack] = useState<track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
+  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (session?.error) {
@@ -109,14 +110,6 @@ export default function JoinedRoomPage() {
           duration_ms: result.duration_ms,
         }));
         setSearchResults(formattedResults || []);
-
-        // const tracks = await searchSongs(roomCode, searchQuery);
-        // if (!tracks) {
-        //   throw new Error("No results found");
-        // }
-
-        // // No transformation needed anymore - the data already matches your track type
-        // setSearchResults(tracks || []);
       } catch (error: any) {
         setSearchError(error.message || "Failed to search songs");
         toast.error(error.message || "Failed to search songs");
@@ -221,6 +214,57 @@ export default function JoinedRoomPage() {
     [player, deviceId, session, queue, socket, roomCode, refreshSession]
   );
 
+  const handleSeek = useCallback(
+    async (positionMs: number, retryCount = 0) => {
+      if (!player || !deviceId || !session?.accessToken) {
+        toast.error("Spotify player not ready");
+        return;
+      }
+      try {
+        await axios.put(
+          `https://api.spotify.com/v1/me/player/seek?device_id=${deviceId}&position_ms=${positionMs}`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        setPlaybackProgress(positionMs);
+        socket?.emit("playbackUpdate", {
+          roomCode,
+          currentTrack,
+          isPlaying,
+          playbackProgress: positionMs,
+        });
+      } catch (error: any) {
+        if (error.response?.status === 401 && retryCount < 1) {
+          const newToken = await refreshSpotifyToken(session.refreshToken!);
+          if (newToken) {
+            await refreshSession();
+            handleSeek(positionMs, retryCount + 1);
+          } else {
+            toast.error("Failed to refresh token");
+          }
+        } else {
+          console.log("Seek error:", error);
+          toast.error("Failed to seek track");
+        }
+      }
+    },
+    [
+      player,
+      deviceId,
+      session,
+      currentTrack,
+      isPlaying,
+      socket,
+      roomCode,
+      refreshSession,
+    ]
+  );
+
   // Playback controls
   const handlePlayPause = useCallback(() => {
     if (!player) return;
@@ -305,13 +349,14 @@ export default function JoinedRoomPage() {
           uri: track.uri,
           duration_ms: track.duration_ms,
         });
+        setPlaybackProgress(state.position);
       } else if (isMounted) {
         setCurrentTrack(null);
+        setPlaybackProgress(0);
       }
 
       if (isMounted) {
         setIsPlaying(!state.paused);
-        setPlaybackProgress(state.position);
       }
 
       // Enhanced track end detection
@@ -396,7 +441,36 @@ export default function JoinedRoomPage() {
     session?.refreshToken,
     refreshSession,
     roomCode,
+    socket,
   ]);
+
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+      return;
+    }
+
+    progressTimerRef.current = setInterval(() => {
+      setPlaybackProgress((prev) => {
+        const newProgress = prev + 1000; // Increment by 1 second
+        if (newProgress >= (currentTrack?.duration_ms || 0)) {
+          clearInterval(progressTimerRef.current!);
+          return prev; // Stop at duration
+        }
+        return newProgress;
+      });
+    }, 1000);
+
+    return () => {
+      if (progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, [isPlaying, currentTrack]);
 
   // Socket.IO listeners
   useEffect(() => {
@@ -436,12 +510,6 @@ export default function JoinedRoomPage() {
     if (roomCode) fetchQueue();
   }, [roomCode]);
 
-  // Debug connected users
-  useEffect(() => {
-    console.log("Connected users in JoinedRoomPage:", connectedUsers);
-    console.log("Connected users length:", connectedUsers.length);
-  }, [connectedUsers]);
-
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Header
@@ -471,6 +539,7 @@ export default function JoinedRoomPage() {
           playbackProgress={playbackProgress}
           onPlayPause={handlePlayPause}
           onSkip={handleSkip}
+          onSeek={handleSeek}
           isOwner={isOwner}
         />
       </div>
