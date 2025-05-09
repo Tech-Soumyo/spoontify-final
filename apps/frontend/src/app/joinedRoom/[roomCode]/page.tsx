@@ -111,7 +111,10 @@ export default function JoinedRoomPage() {
         );
         const updatedQueue = response.data.queue;
         setQueue(updatedQueue);
-        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        // Emit queue update through the existing socket connection
+        if (socket && socket.connected) {
+          socket.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        }
         toast.success(`${track.name} added to queue`);
       } catch (error: any) {
         console.log("Add to queue error:", error);
