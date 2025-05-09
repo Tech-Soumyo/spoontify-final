@@ -2,12 +2,12 @@
 import { Header } from "@/components/custom/Header";
 import { NowPlaying } from "@/components/custom/NowPlaying";
 import { SearchSection } from "@/components/custom/SearchSection";
-import { QueueSection } from "@/components/custom/QueueList"; // Verify path
+import { QueueSection } from "@/components/custom/QueueList";
 import { useSocket } from "@/hooks/Socket/useSocket.hook";
 import { track } from "@/types/song.type";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
@@ -37,39 +37,14 @@ export default function JoinedRoomPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPlayedTrackIdRef = useRef<string | null>(null);
+  const isPlayingTrackRef = useRef<boolean>(false); // Track if a play is in progress
 
   useEffect(() => {
     if (session?.error) {
       toast.error(`Session error: ${session.error}`);
     }
   }, [session]);
-
-  // const handleSearch = useCallback(
-  //   async (searchQuery: string) => {
-  //     if (!searchQuery.trim()) {
-  //       setSearchError("Please enter a search query");
-  //       return;
-  //     }
-
-  //     setSearchLoading(true);
-  //     setSearchError(null);
-
-  //     try {
-  //       const response = await axios.post(
-  //         `${process.env.NEXT_PUBLIC_BACKEND_URL}/spotify/search`,
-  //         { roomCode, query: searchQuery },
-  //         { headers: { "Content-Type": "application/json" } }
-  //       );
-  //       setSearchResults(response.data.results || []);
-  //     } catch (error: any) {
-  //       setSearchError(error.response?.data?.error || "Failed to search songs");
-  //       toast.error(error.response?.data?.error || "Failed to search songs");
-  //     } finally {
-  //       setSearchLoading(false);
-  //     }
-  //   },
-  //   [roomCode]
-  // );
 
   // Handle song search
   const handleSearch = useCallback(
@@ -78,12 +53,10 @@ export default function JoinedRoomPage() {
         setSearchError("Please enter a search query");
         return;
       }
-
       if (!roomCode) {
         setSearchError("Room code is missing");
         return;
       }
-
       setSearchLoading(true);
       setSearchError(null);
       try {
@@ -91,8 +64,6 @@ export default function JoinedRoomPage() {
         if (!results) {
           throw new Error("No results found");
         }
-
-        // Transform results to match expected track type
         const formattedResults = results.map((result: any) => ({
           id: result.id,
           name: result.name,
@@ -153,7 +124,7 @@ export default function JoinedRoomPage() {
   // Refresh session manually
   const refreshSession = useCallback(async () => {
     try {
-      await axios.get("/api/auth/session"); // Triggers session refresh
+      await axios.get("/api/auth/session");
     } catch (error) {
       console.log("Session refresh error:", error);
       toast.error("Failed to refresh session");
@@ -167,6 +138,12 @@ export default function JoinedRoomPage() {
         toast.error("Spotify player not ready");
         return;
       }
+      if (isPlayingTrackRef.current) {
+        console.log("Play in progress, skipping duplicate call for:", track.id);
+        return;
+      }
+      isPlayingTrackRef.current = true;
+
       try {
         await axios.put(
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
@@ -179,28 +156,51 @@ export default function JoinedRoomPage() {
           }
         );
 
-        try {
-          await axios.delete("/api/room/queue/remove", {
-            data: { roomCode, trackId: track.id },
-            headers: { "Content-Type": "application/json" },
-          });
-        } catch (error: any) {
-          console.log("Queue remove error:", error);
-          toast.error("Failed to remove track from queue");
+        setCurrentTrack(track);
+        setPlaybackProgress(0);
+        setIsPlaying(true);
+        lastPlayedTrackIdRef.current = track.id;
+
+        // Remove the track from the queue if it exists
+        if (queue.some((t) => t.id === track.id)) {
+          try {
+            await axios.delete("/api/room/queue/remove", {
+              data: { roomCode, trackId: track.id },
+              headers: { "Content-Type": "application/json" },
+            });
+          } catch (error: any) {
+            console.log("Queue remove error:", error);
+            if (
+              error.response?.data?.error?.includes(
+                "Record to delete does not exist"
+              )
+            ) {
+              console.log("Track already removed from database:", track.id);
+            } else {
+              toast.error("Failed to remove track from queue");
+            }
+          }
+
+          // Update local queue state
+          const updatedQueue = queue.filter((t) => t.id !== track.id);
+          setQueue(updatedQueue);
+          socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        } else {
+          console.log("Track not in queue, skipping removal:", track.id);
         }
 
-        const updatedQueue = queue.filter((t) => t.id !== track.id);
-        setQueue(updatedQueue);
-        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
-        if (updatedQueue.length === 0) {
-          socket?.emit("queueEmpty", { roomCode });
-        }
+        // Emit playback update for non-owners
+        socket?.emit("playbackUpdate", {
+          roomCode,
+          currentTrack: track,
+          isPlaying: true,
+          playbackProgress: 0,
+        });
       } catch (error: any) {
         if (error.response?.status === 401 && retryCount < 1) {
           const newToken = await refreshSpotifyToken(session.refreshToken!);
           if (newToken) {
-            // refreshSpotifyToken already updates tokens via /api/auth/update-token
-            await refreshSession(); // Refresh session to get new token
+            await refreshSession();
             handlePlayTrack(track, retryCount + 1);
           } else {
             toast.error("Failed to refresh token");
@@ -209,11 +209,14 @@ export default function JoinedRoomPage() {
           console.log("Play error:", error);
           toast.error("Failed to play track");
         }
+      } finally {
+        isPlayingTrackRef.current = false;
       }
     },
     [player, deviceId, session, queue, socket, roomCode, refreshSession]
   );
 
+  // Seek to position
   const handleSeek = useCallback(
     async (positionMs: number, retryCount = 0) => {
       if (!player || !deviceId || !session?.accessToken) {
@@ -310,7 +313,7 @@ export default function JoinedRoomPage() {
           const newToken = await refreshSpotifyToken(session.refreshToken!);
           if (newToken) {
             token = newToken.accessToken;
-            await refreshSession(); // Refresh session
+            await refreshSession();
           }
         }
         cb(token);
@@ -330,56 +333,38 @@ export default function JoinedRoomPage() {
     spotifyPlayer.addListener("player_state_changed", (state) => {
       if (!state || !isMounted) return;
 
-      console.log("Disallows:", state.disallows);
-      console.log("Restrictions:", state.restrictions);
       const track = state.track_window.current_track;
 
       if (track && isMounted) {
-        setCurrentTrack({
-          id: track.id ?? "",
-          name: track.name,
-          artists: track.artists.map((artist) => ({ name: artist.name })),
-          album: {
-            name: track.album.name,
-            imageUrl: track.album.images[0]?.url ?? "",
-            images: track.album.images,
-          },
-          popularity: 0,
-          preview_url: "",
-          uri: track.uri,
-          duration_ms: track.duration_ms,
-        });
-        setPlaybackProgress(state.position);
-      } else if (isMounted) {
+        // Only update if the track has changed
+        if (track.id !== currentTrack?.id) {
+          setCurrentTrack({
+            id: track.id ?? "",
+            name: track.name,
+            artists: track.artists.map((artist) => ({ name: artist.name })),
+            album: {
+              name: track.album.name,
+              imageUrl: track.album.images[0]?.url ?? "",
+              images: track.album.images,
+            },
+            popularity: 0,
+            preview_url: "",
+            uri: track.uri,
+            duration_ms: track.duration_ms,
+          });
+          setPlaybackProgress(state.position);
+        } else {
+          // Update progress if the track is the same
+          setPlaybackProgress(state.position);
+        }
+      } else if (isMounted && !track) {
         setCurrentTrack(null);
         setPlaybackProgress(0);
+        setIsPlaying(false);
       }
 
       if (isMounted) {
         setIsPlaying(!state.paused);
-      }
-
-      // Enhanced track end detection
-      if (
-        isMounted &&
-        state.paused &&
-        state.position >= state.duration - 1000 &&
-        !state.disallows.peeking_next &&
-        queue.length > 0
-      ) {
-        const nextTrack = queue[0];
-        if (nextTrack) {
-          console.log("Track ended, playing next from queue:", nextTrack.name);
-          handlePlayTrack(nextTrack);
-        }
-      } else if (
-        isMounted &&
-        state.paused &&
-        state.position >= state.duration - 1000 &&
-        queue.length === 0 &&
-        currentTrack
-      ) {
-        socket?.emit("queueEmpty", { roomCode });
       }
 
       // Emit playback update for non-owners
@@ -444,8 +429,9 @@ export default function JoinedRoomPage() {
     socket,
   ]);
 
+  // Progress timer for continuous updates
   useEffect(() => {
-    if (!isPlaying || !currentTrack) {
+    if (!isPlaying || !currentTrack || !currentTrack.duration_ms) {
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
         progressTimerRef.current = null;
@@ -455,11 +441,26 @@ export default function JoinedRoomPage() {
 
     progressTimerRef.current = setInterval(() => {
       setPlaybackProgress((prev) => {
-        const newProgress = prev + 1000; // Increment by 1 second
-        if (newProgress >= (currentTrack?.duration_ms || 0)) {
+        const newProgress = prev + 1000;
+        if (
+          newProgress >= (currentTrack.duration_ms || 0) - 500 &&
+          !isPlayingTrackRef.current
+        ) {
           clearInterval(progressTimerRef.current!);
-          return prev; // Stop at duration
+          progressTimerRef.current = null;
+
+          if (lastPlayedTrackIdRef.current === currentTrack.id) {
+            handleSkip();
+          }
+          return currentTrack.duration_ms || 0;
         }
+        // Emit updated progress to non-owners
+        socket?.emit("playbackUpdate", {
+          roomCode,
+          currentTrack,
+          isPlaying,
+          playbackProgress: newProgress,
+        });
         return newProgress;
       });
     }, 1000);
@@ -470,7 +471,7 @@ export default function JoinedRoomPage() {
         progressTimerRef.current = null;
       }
     };
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrack, handleSkip, socket, roomCode]);
 
   // Socket.IO listeners
   useEffect(() => {
@@ -488,6 +489,9 @@ export default function JoinedRoomPage() {
     });
     socket.on("queueEmpty", () => {
       toast.info("Queue is empty");
+      setCurrentTrack(null); // Ensure NowPlaying clears on queueEmpty
+      setPlaybackProgress(0);
+      setIsPlaying(false);
     });
     return () => {
       socket.off("playbackUpdate");
@@ -509,6 +513,12 @@ export default function JoinedRoomPage() {
     };
     if (roomCode) fetchQueue();
   }, [roomCode]);
+
+  // Debug connected users
+  useEffect(() => {
+    console.log("Connected users in JoinedRoomPage:", connectedUsers);
+    console.log("Connected users length:", connectedUsers.length);
+  }, [connectedUsers]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
