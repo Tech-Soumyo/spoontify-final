@@ -1,16 +1,18 @@
 "use client";
 
-import { track } from "@/app/joinedRoom/[roomCode]/page";
+import { track } from "@/hooks/useSpotySong";
 import { Button } from "../ui/button";
 
 export const QueueSection = ({
   queue,
   isOwner,
   onPlayTrack,
+  onRemoveTrack,
 }: {
   queue: any[];
   isOwner: boolean;
   onPlayTrack: (track: track) => void;
+  onRemoveTrack?: (track: track) => void;
 }) => (
   <div className="p-4 m-4 bg-gray-800 rounded-lg shadow-md">
     <h2 className="text-xl font-semibold text-white mb-2">Queue</h2>
@@ -48,7 +50,10 @@ export const QueueSection = ({
                   >
                     Play Now
                   </button>
-                  <button className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded-lg transition">
+                  <button
+                    onClick={() => onRemoveTrack && onRemoveTrack(queuedTrack)}
+                    className="bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-2 rounded-lg transition"
+                  >
                     Remove
                   </button>
                 </>
