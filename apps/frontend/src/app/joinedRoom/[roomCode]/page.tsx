@@ -95,6 +95,12 @@ export default function JoinedRoomPage() {
   const handleAddToQueue = useCallback(
     async (track: track) => {
       try {
+        // Check if the track is currently playing
+        if (currentTrack && currentTrack.id === track.id) {
+          toast.error("This song is currently playing");
+          return;
+        }
+
         const response = await axios.post(
           "/api/room/queue/add",
           {
@@ -111,14 +117,35 @@ export default function JoinedRoomPage() {
         );
         const updatedQueue = response.data.queue;
         setQueue(updatedQueue);
-        // Emit queue update through the existing socket connection
-        if (socket && socket.connected) {
-          socket.emit("queueUpdated", { roomCode, queue: updatedQueue });
-        }
+        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
         toast.success(`${track.name} added to queue`);
       } catch (error: any) {
         console.log("Add to queue error:", error);
-        toast.error("Failed to add song to queue");
+        const errorMessage =
+          error.response?.data?.error || "Failed to add song to queue";
+        toast.error(errorMessage);
+      }
+    },
+    [roomCode, socket, currentTrack]
+  );
+
+  const handleRemoveTrack = useCallback(
+    async (track: track) => {
+      try {
+        const response = await axios.delete("/api/room/queue/remove", {
+          data: { roomCode, trackId: track.id },
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const updatedQueue = response.data.queue;
+        setQueue(updatedQueue);
+        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        toast.success(`${track.name} removed from queue`);
+      } catch (error: any) {
+        console.log("Remove from queue error:", error);
+        const errorMessage =
+          error.response?.data?.error || "Failed to remove song from queue";
+        toast.error(errorMessage);
       }
     },
     [roomCode, socket]
@@ -545,6 +572,7 @@ export default function JoinedRoomPage() {
           queue={queue}
           isOwner={isOwner}
           onPlayTrack={handlePlayTrack}
+          onRemoveTrack={handleRemoveTrack}
         />
         <NowPlaying
           currentTrack={currentTrack}
