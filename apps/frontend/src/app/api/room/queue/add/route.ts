@@ -63,6 +63,19 @@ export async function POST(request: Request) {
           duration_ms = retryRes.data?.duration_ms ?? 0;
         }
       }
+    } // Check if the track is currently in the queue
+    const existingTrack = await prisma.queueEntry.findFirst({
+      where: {
+        roomId: room.id,
+        trackId: track.trackId,
+      },
+    });
+
+    if (existingTrack) {
+      return NextResponse.json(
+        { error: "This song is already in the queue" },
+        { status: 400 }
+      );
     }
 
     const result = await prisma.$transaction(async (tx) => {
