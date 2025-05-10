@@ -1,10 +1,8 @@
 "use client";
-import { SocketResponse, useSocket } from "@/hooks/Socket/useSocket.hook";
-// import { useSocket } from "@/hooks/useSocket2";
+import { useSocket } from "@/hooks/Socket/useSocket.hook";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 
 export default function CreateJoinRoom() {
   const { data: session } = useSession();
@@ -12,18 +10,10 @@ export default function CreateJoinRoom() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const {
-    socket,
-    createRoom,
-    handleJoinRoom,
-    setIsOwner,
-    setConnectedUsers,
-    connectedUsers,
-  } = useSocket();
-
+  const { createRoom, handleJoinRoom } = useSocket();
   const handleCreateRoom = () => {
-    if (!session?.user?.spotifyId && session?.user?.isPremium !== true) {
-      setError("For Room Creation, First do Spotify Login.");
+    if (!session?.user?.spotifyId || !session?.accessToken) {
+      setError("For Room Creation, you must connect with Spotify first.");
       return;
     }
     createRoom();
@@ -79,7 +69,6 @@ export default function CreateJoinRoom() {
           <button
             onClick={() => {
               handleCreateRoom();
-              console.log("connectedUsers" + JSON.stringify(connectedUsers));
             }}
             className={`p-2 text-white rounded flex-1 ${
               session?.user?.spotifyId
@@ -88,7 +77,9 @@ export default function CreateJoinRoom() {
             }`}
             disabled={
               loading ||
-              (!session?.user?.spotifyId && session?.user?.isPremium !== true)
+              (!session?.user?.spotifyId &&
+                session?.user?.isPremium &&
+                !session.accessToken)
             }
           >
             {loading ? "Creating..." : "Create Room"}
