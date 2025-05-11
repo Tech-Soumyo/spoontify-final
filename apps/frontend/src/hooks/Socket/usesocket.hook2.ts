@@ -1,9 +1,10 @@
-import { track } from "@/types/song.type";
+"use client";
 import { io, Socket } from "socket.io-client";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { debounce } from "lodash";
 
 export type SocketResponse = {
   error?: string;
@@ -13,48 +14,93 @@ export type SocketResponse = {
   isOwner?: boolean;
   message?: string;
 };
-interface RoomData {
-  ownerId: string;
-  ownerName: string;
-  ownerAccessToken?: string;
-  ownerRefreshRocken?: string;
-  participants: string[];
-  queue: any[];
-  currentTrack: track | null;
-  isPlaying: boolean;
-  error: any | null;
-}
+
+const SOCKET_TIMEOUT = 10000;
+const ROOM_CODE_REGEX = /^[A-Za-z0-9]{6}$/;
 
 export const useSocket = (roomCode?: string) => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const socketRef = useRef<Socket | null>(null);
-  // const playerRef = useRef<Spotify.Player | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [isSessionReady, setIsSessionReady] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<
     { id: string; name: string }[]
   >([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const initTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pathname = usePathname();
+
+  const debouncedToast = useCallback(
+    debounce(
+      (message: string, type: "success" | "error" | "info") => {
+        toast[type](message);
+      },
+      1000,
+      { leading: true, trailing: false }
+    ),
+    []
+  );
+
   useEffect(() => {
-    if (!session?.user || (socketRef.current && socketRef.current.connected))
+    return () => {
+      setError("");
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (status === "loading") {
+      initTimeoutRef.current = setTimeout(() => {
+        if (!isSessionReady) {
+          debouncedToast("Session initialization timeout", "error");
+          setError("Failed to initialize session");
+        }
+      }, SOCKET_TIMEOUT);
+    }
+
+    if (session?.user?.userId) {
+      setIsSessionReady(true);
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    }
+
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
+  }, [session, status, debouncedToast]);
+
+  useEffect(() => {
+    if (
+      !isSessionReady ||
+      (socketRef.current && socketRef.current.connected) ||
+      !session
+    )
       return;
 
     const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL as string, {
       auth: {
         session: {
           user: {
-            ...session.user,
-            spotifyAccessToken: session.accessToken,
-            spotifyRefreshToken: session.refreshToken,
+            ...(session?.user || {}),
+            spotifyAccessToken: session?.accessToken,
+            spotifyRefreshToken: session?.refreshToken,
           },
         },
       },
       reconnection: true,
       transports: ["websocket"],
+      timeout: SOCKET_TIMEOUT,
     });
 
     socketRef.current = socketInstance;
+
+    const heartbeatInterval = setInterval(() => {
+      socketInstance.emit("heartbeat");
+    }, 30000);
 
     const handleUserJoined = ({
       userId,
@@ -68,66 +114,133 @@ export const useSocket = (roomCode?: string) => {
           ? prev
           : [...prev, { id: userId, name }]
       );
+      debouncedToast(`${name} joined the room`, "info");
     };
 
-    // const handleLeftUser = (userId: string) => {
-    //   setConnectedUser((prev) => prev.filter((id) => id !== userId));
-    // };
-    socketInstance.on("connect", () => console.log("Socket connected"));
-    socketInstance.on("userJoined", handleUserJoined);
-    // socketInstance.on("userLeft", handleLeftUser);
-    socketInstance.on("participantsUpdated", setConnectedUsers);
-    socketInstance.on("roomClosed", () => {
-      toast.info("Room has been closed");
+    const handleRoomClosed = () => {
+      debouncedToast("Room has been closed", "info");
       router.push("/createjoin");
+    };
+
+    const handleUserLeft = ({
+      userId,
+      name,
+    }: {
+      userId: string;
+      name: string;
+    }) => {
+      debouncedToast(`${name} left the room`, "info");
+      setConnectedUsers((prev) => prev.filter((u) => u.id !== userId));
+    };
+
+    const handleParticipantsUpdated = (
+      participants: { id: string; name: string }[]
+    ) => {
+      setConnectedUsers(participants);
+    };
+
+    socketInstance.on("connect", () => {
+      setError("");
     });
-    // socketInstance.on("forceDisconnect", () => router.push("/createjoin"));
+
+    socketInstance.on("connect_error", (err) => {
+      setError(`Connection error: ${err.message}`);
+      debouncedToast("Failed to connect to server", "error");
+    });
+
+    socketInstance.on("userJoined", handleUserJoined);
+    socketInstance.on("participantsUpdated", handleParticipantsUpdated);
+    socketInstance.on("roomClosed", handleRoomClosed);
+    socketInstance.on("userLeft", handleUserLeft);
+
+    if (roomCode) {
+      if (!ROOM_CODE_REGEX.test(roomCode)) {
+        setError("Invalid room code format");
+        return;
+      }
+
+      socketInstance.emit("joinRoom", roomCode, (response: SocketResponse) => {
+        if (response.error) {
+          setError(response.error);
+          debouncedToast(response.error, "error");
+        } else {
+          setError("");
+          setConnectedUsers(response.participants || []);
+          setIsOwner(response.isOwner || false);
+        }
+      });
+    }
 
     return () => {
+      clearInterval(heartbeatInterval);
+      socketInstance.off("connect");
+      socketInstance.off("connect_error");
       socketInstance.off("userJoined", handleUserJoined);
-      // socketInstance.off("userLeft", handleLeftUser);
-      socketInstance.off("participantsUpdated", setConnectedUsers);
-      socketInstance.off("roomClosed", () => router.push("/createjoin"));
-      // socketInstance.off("forceDisconnect", () => router.push("/createjoin"));
+      socketInstance.off("participantsUpdated", handleParticipantsUpdated);
+      socketInstance.off("roomClosed", handleRoomClosed);
+      socketInstance.off("userLeft", handleUserLeft);
+      socketInstance.disconnect();
     };
-  }, [session, roomCode, router, isOwner, session?.accessToken]);
+  }, [isSessionReady, session, roomCode, router, debouncedToast]);
+
+  useEffect(() => {
+    console.log("Updated connectedUsers in useSocket:", connectedUsers);
+    console.log("Connected users length in useSocket:", connectedUsers.length);
+  }, [connectedUsers]);
 
   const createRoom = () => {
     if (!socketRef.current) {
-      toast.error("Socket not initialized");
-      return;
+      const error = "Socket not initialized";
+      setError(error);
+      debouncedToast(error, "error");
+      return Promise.reject(new Error(error));
     }
 
     setLoading(true);
     setError("");
 
-    socketRef.current.emit("createRoom", (response: SocketResponse) => {
-      setLoading(false);
-      if (response.error) {
-        setError(response.error);
-        toast.error(response.error);
-      } else if (response.roomCode) {
-        setIsOwner(true);
-        setConnectedUsers([
-          {
-            id: session?.user?.userId as string,
-            name: session?.user?.name || "Owner",
-          },
-        ]);
-        router.push(`/joinedRoom/${response.roomCode}`);
-      }
+    return new Promise<SocketResponse>((resolve, reject) => {
+      socketRef.current!.emit("createRoom", (response: SocketResponse) => {
+        setLoading(false);
+        if (response.error) {
+          setError(response.error);
+          debouncedToast(response.error, "error");
+          reject(new Error(response.error));
+        } else if (response.roomCode) {
+          setError("");
+          setIsOwner(true);
+          setConnectedUsers([
+            {
+              id: session?.user?.userId as string,
+              name: session?.user?.name as string,
+            },
+          ]);
+          router.push(`/joinedRoom/${response.roomCode}`);
+          resolve(response);
+        }
+      });
     });
   };
+
   const handleJoinRoom = async (joinRoomCode: string) => {
-    if (!joinRoomCode || !socketRef.current) {
-      toast.error("Socket not initialized or no room code provided");
-      return;
+    if (!ROOM_CODE_REGEX.test(joinRoomCode)) {
+      const error = "Invalid room code format";
+      setError(error);
+      debouncedToast(error, "error");
+      return Promise.reject(new Error(error));
+    }
+
+    if (!socketRef.current) {
+      const error = "Socket not initialized";
+      setError(error);
+      debouncedToast(error, "error");
+      return Promise.reject(new Error(error));
     }
 
     setLoading(true);
     setError("");
 
-    return new Promise((resolve, reject) => {
+    return new Promise<SocketResponse>((resolve, reject) => {
       socketRef.current!.emit(
         "joinRoom",
         joinRoomCode,
@@ -135,14 +248,16 @@ export const useSocket = (roomCode?: string) => {
           setLoading(false);
           if (response.error) {
             setError(response.error);
-            toast.error(
+            debouncedToast(
               response.error === "Room not found"
-                ? "Room doesn’t exist"
-                : response.error
+                ? "Room doesn't exist"
+                : response.error,
+              "error"
             );
             router.push("/createjoin");
             reject(new Error(response.error));
           } else {
+            setError("");
             setConnectedUsers(response.participants || []);
             setIsOwner(response.isOwner || false);
             router.push(`/joinedRoom/${joinRoomCode}`);
@@ -152,27 +267,48 @@ export const useSocket = (roomCode?: string) => {
       );
     });
   };
-  const leaveRoom = (roomCode: string | undefined) => {
-    if (!socketRef.current || !roomCode) return;
 
-    socketRef.current.emit(
-      "leaveRoom",
-      roomCode,
-      (response: SocketResponse) => {
-        if (response.error) {
-          toast.error(response.error);
-        } else {
-          router.push("/createjoin");
+  const leaveRoom = (roomCode: string | undefined) => {
+    if (!socketRef.current || !roomCode) {
+      const error = "Socket not connected or no room code provided";
+      setError(error);
+      debouncedToast(error, "error");
+      return Promise.reject(new Error(error));
+    }
+
+    return new Promise<SocketResponse>((resolve, reject) => {
+      socketRef.current!.emit(
+        "leaveRoom",
+        roomCode,
+        (response: SocketResponse) => {
+          if (response.error) {
+            setError(response.error);
+            debouncedToast(response.error, "error");
+            reject(new Error(response.error));
+          } else {
+            setError("");
+            debouncedToast(
+              response.message || "Left room successfully",
+              "success"
+            );
+            router.push("/createjoin");
+            resolve(response);
+          }
         }
-      }
-    );
+      );
+    });
   };
+
   return {
     socket: socketRef.current,
     isOwner,
+    setIsOwner,
     connectedUsers,
+    setConnectedUsers,
     error,
+    setError,
     loading,
+    setLoading,
     createRoom,
     handleJoinRoom,
     leaveRoom,
