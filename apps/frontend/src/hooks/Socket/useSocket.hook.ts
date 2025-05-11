@@ -108,7 +108,7 @@ export const useSocket = (roomCode?: string) => {
     if (roomCode) {
       socketInstance.emit("joinRoom", roomCode, (response: SocketResponse) => {
         if (response.error) {
-          console.error("Join room error:", response.error);
+          console.log("Join room error:", response.error);
           setError(response.error);
         } else {
           setConnectedUsers(response.participants || []);
