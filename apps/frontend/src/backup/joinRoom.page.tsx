@@ -1,4 +1,4 @@
-// Backup of 9 may without autoskipping running well
+// Everything running well, now I am gonna implement chat
 "use client";
 import { Header } from "@/components/custom/Header";
 import { NowPlaying } from "@/components/custom/NowPlaying";
@@ -19,7 +19,7 @@ export default function JoinedRoomPage() {
   const roomCode = Array.isArray(params.roomCode)
     ? params.roomCode[0]
     : params.roomCode;
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { connectedUsers, leaveRoom, socket, isOwner } = useSocket(roomCode);
 
@@ -38,11 +38,16 @@ export default function JoinedRoomPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastPlayedTrackIdRef = useRef<string | null>(null); // Track last played track to prevent duplicate triggers
+  const lastPlayedTrackIdRef = useRef<string | null>(null);
+  const isPlayingTrackRef = useRef<boolean>(false); // Track if a play is in progress
 
   useEffect(() => {
     if (session?.error) {
       toast.error(`Session error: ${session.error}`);
+    }
+    if (status === "unauthenticated") {
+      toast.error("You need to be authenticated to access this page");
+      router.push("/createjoin");
     }
   }, [session]);
 
@@ -95,6 +100,12 @@ export default function JoinedRoomPage() {
   const handleAddToQueue = useCallback(
     async (track: track) => {
       try {
+        // Check if the track is currently playing
+        if (currentTrack && currentTrack.id === track.id) {
+          toast.error("This song is currently playing");
+          return;
+        }
+
         const response = await axios.post(
           "/api/room/queue/add",
           {
@@ -115,7 +126,31 @@ export default function JoinedRoomPage() {
         toast.success(`${track.name} added to queue`);
       } catch (error: any) {
         console.log("Add to queue error:", error);
-        toast.error("Failed to add song to queue");
+        const errorMessage =
+          error.response?.data?.error || "Failed to add song to queue";
+        toast.error(errorMessage);
+      }
+    },
+    [roomCode, socket, currentTrack]
+  );
+
+  const handleRemoveTrack = useCallback(
+    async (track: track) => {
+      try {
+        const response = await axios.delete("/api/room/queue/remove", {
+          data: { roomCode, trackId: track.id },
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const updatedQueue = response.data.queue;
+        setQueue(updatedQueue);
+        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        toast.success(`${track.name} removed from queue`);
+      } catch (error: any) {
+        console.log("Remove from queue error:", error);
+        const errorMessage =
+          error.response?.data?.error || "Failed to remove song from queue";
+        toast.error(errorMessage);
       }
     },
     [roomCode, socket]
@@ -138,6 +173,12 @@ export default function JoinedRoomPage() {
         toast.error("Spotify player not ready");
         return;
       }
+      if (isPlayingTrackRef.current) {
+        console.log("Play in progress, skipping duplicate call for:", track.id);
+        return;
+      }
+      isPlayingTrackRef.current = true;
+
       try {
         await axios.put(
           `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
@@ -153,26 +194,35 @@ export default function JoinedRoomPage() {
         setCurrentTrack(track);
         setPlaybackProgress(0);
         setIsPlaying(true);
-
-        // Update last played track to prevent duplicate triggers
         lastPlayedTrackIdRef.current = track.id;
 
-        // Remove the track from the queue
-        try {
-          if (queue[0]?.id === track.id) {
+        // Remove the track from the queue if it exists
+        if (queue.some((t) => t.id === track.id)) {
+          try {
             await axios.delete("/api/room/queue/remove", {
               data: { roomCode, trackId: track.id },
               headers: { "Content-Type": "application/json" },
             });
+          } catch (error: any) {
+            console.log("Queue remove error:", error);
+            if (
+              error.response?.data?.error?.includes(
+                "Record to delete does not exist"
+              )
+            ) {
+              console.log("Track already removed from database:", track.id);
+            } else {
+              toast.error("Failed to remove track from queue");
+            }
           }
-        } catch (error: any) {
-          console.log("Queue remove error:", error);
-          toast.error("Failed to remove track from queue");
-        }
 
-        const updatedQueue = queue.filter((t) => t.id !== track.id);
-        setQueue(updatedQueue);
-        socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+          // Update local queue state
+          const updatedQueue = queue.filter((t) => t.id !== track.id);
+          setQueue(updatedQueue);
+          socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
+        } else {
+          console.log("Track not in queue, skipping removal:", track.id);
+        }
 
         // Emit playback update for non-owners
         socket?.emit("playbackUpdate", {
@@ -194,54 +244,12 @@ export default function JoinedRoomPage() {
           console.log("Play error:", error);
           toast.error("Failed to play track");
         }
+      } finally {
+        isPlayingTrackRef.current = false;
       }
     },
     [player, deviceId, session, queue, socket, roomCode, refreshSession]
   );
-  // const handlePlayTrack = useCallback(
-  //   async (track: track, retryCount = 0) => {
-  //     if (!player || !deviceId || !session?.accessToken) {
-  //       toast.error("Spotify player not ready");
-  //       return;
-  //     }
-
-  //     try {
-  //       await axios.put(
-  //         `https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`
-  //       );
-
-  //       try {
-  //         await axios.delete("/api/room/queue/remove", {
-  //           data: { roomCode, trackId: track.id },
-  //           headers: { "Content-Type": "application/json" },
-  //         });
-  //       } catch (error: any) {
-  //         console.log("Queue remove error:", error);
-  //         toast.error("Failed to remove track from queue");
-  //       }
-
-  //       const updatedQueue = queue.filter((t) => t.id !== track.id);
-  //       setQueue(updatedQueue);
-  //       socket?.emit("queueUpdated", { roomCode, queue: updatedQueue });
-
-  //     } catch (error: any) {
-  //       if (error.response?.status === 401 && retryCount < 1) {
-  //         const newToken = await refreshSpotifyToken(session.refreshToken!);
-  //         if (newToken) {
-  //           // refreshSpotifyToken already updates tokens via /api/auth/update-token
-  //           await refreshSession(); // Refresh session to get new token
-  //           handlePlayTrack(track, retryCount + 1);
-  //         } else {
-  //           toast.error("Failed to refresh token");
-  //         }
-  //       } else {
-  //         console.log("Play error:", error);
-  //         toast.error("Failed to play track");
-  //       }
-  //     }
-  //   },
-  //   [player, deviceId, session, queue, socket, roomCode, refreshSession]
-  // );
 
   // Seek to position
   const handleSeek = useCallback(
@@ -456,49 +464,9 @@ export default function JoinedRoomPage() {
     socket,
   ]);
 
-  // Progress timer for continuous updates and track end detection
-  // useEffect(() => {
-  //   if (!isPlaying || !currentTrack || !currentTrack.duration_ms) {
-  //     if (progressTimerRef.current) {
-  //       clearInterval(progressTimerRef.current);
-  //       progressTimerRef.current = null;
-  //     }
-  //     return;
-  //   }
-
-  //   progressTimerRef.current = setInterval(() => {
-  //     setPlaybackProgress((prev) => {
-  //       const newProgress = prev + 1000;
-  //       if (newProgress >= (currentTrack.duration_ms || 0) - 500) {
-  //         clearInterval(progressTimerRef.current!);
-  //         progressTimerRef.current = null;
-
-  //         if (lastPlayedTrackIdRef.current === currentTrack.id) {
-  //           handleSkip();
-  //         }
-  //         return currentTrack.duration_ms || 0;
-  //       }
-  //       // Emit updated progress to non-owners
-  //       socket?.emit("playbackUpdate", {
-  //         roomCode,
-  //         currentTrack,
-  //         isPlaying,
-  //         playbackProgress: newProgress,
-  //       });
-  //       return newProgress;
-  //     });
-  //   }, 1000);
-
-  //   return () => {
-  //     if (progressTimerRef.current) {
-  //       clearInterval(progressTimerRef.current);
-  //       progressTimerRef.current = null;
-  //     }
-  //   };
-  // }, [isPlaying, currentTrack, handleSkip, socket, roomCode]);
-
+  // Progress timer for continuous updates
   useEffect(() => {
-    if (!isPlaying || !currentTrack) {
+    if (!isPlaying || !currentTrack || !currentTrack.duration_ms) {
       if (progressTimerRef.current) {
         clearInterval(progressTimerRef.current);
         progressTimerRef.current = null;
@@ -508,11 +476,26 @@ export default function JoinedRoomPage() {
 
     progressTimerRef.current = setInterval(() => {
       setPlaybackProgress((prev) => {
-        const newProgress = prev + 1000; // Increment by 1 second
-        if (newProgress >= (currentTrack?.duration_ms || 0)) {
+        const newProgress = prev + 1000;
+        if (
+          newProgress >= (currentTrack.duration_ms || 0) - 500 &&
+          !isPlayingTrackRef.current
+        ) {
           clearInterval(progressTimerRef.current!);
-          return prev; // Stop at duration
+          progressTimerRef.current = null;
+
+          if (lastPlayedTrackIdRef.current === currentTrack.id) {
+            handleSkip();
+          }
+          return currentTrack.duration_ms || 0;
         }
+        // Emit updated progress to non-owners
+        socket?.emit("playbackUpdate", {
+          roomCode,
+          currentTrack,
+          isPlaying,
+          playbackProgress: newProgress,
+        });
         return newProgress;
       });
     }, 1000);
@@ -523,7 +506,7 @@ export default function JoinedRoomPage() {
         progressTimerRef.current = null;
       }
     };
-  }, [isPlaying, currentTrack]);
+  }, [isPlaying, currentTrack, handleSkip, socket, roomCode]);
 
   // Socket.IO listeners
   useEffect(() => {
@@ -552,19 +535,24 @@ export default function JoinedRoomPage() {
     };
   }, [socket]);
 
-  // Fetch initial queue
+  // Verify room exists and fetch initial queue
   useEffect(() => {
-    const fetchQueue = async () => {
+    const fetchQueueAndVerifyRoom = async () => {
       try {
         const response = await axios.get(`/api/room/queue/${roomCode}`);
         setQueue(response.data.queue || []);
-      } catch (error) {
+      } catch (error: any) {
         console.log("Fetch queue error:", error);
+        if (error.response?.status === 404) {
+          toast.error("Room doesn't exist");
+          router.push("/createjoin");
+          return;
+        }
         toast.error("Failed to fetch queue");
       }
     };
-    if (roomCode) fetchQueue();
-  }, [roomCode]);
+    if (roomCode) fetchQueueAndVerifyRoom();
+  }, [roomCode, router]);
 
   // Debug connected users
   useEffect(() => {
@@ -594,6 +582,7 @@ export default function JoinedRoomPage() {
           queue={queue}
           isOwner={isOwner}
           onPlayTrack={handlePlayTrack}
+          onRemoveTrack={handleRemoveTrack}
         />
         <NowPlaying
           currentTrack={currentTrack}
