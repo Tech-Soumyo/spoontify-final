@@ -18,7 +18,7 @@ export default function JoinedRoomPage() {
   const roomCode = Array.isArray(params.roomCode)
     ? params.roomCode[0]
     : params.roomCode;
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const { connectedUsers, leaveRoom, socket, isOwner } = useSocket(roomCode);
 
@@ -43,6 +43,10 @@ export default function JoinedRoomPage() {
   useEffect(() => {
     if (session?.error) {
       toast.error(`Session error: ${session.error}`);
+    }
+    if (status === "unauthenticated") {
+      toast.error("You need to be authenticated to access this page");
+      router.push("/createjoin");
     }
   }, [session]);
 
@@ -530,19 +534,24 @@ export default function JoinedRoomPage() {
     };
   }, [socket]);
 
-  // Fetch initial queue
+  // Verify room exists and fetch initial queue
   useEffect(() => {
-    const fetchQueue = async () => {
+    const fetchQueueAndVerifyRoom = async () => {
       try {
         const response = await axios.get(`/api/room/queue/${roomCode}`);
         setQueue(response.data.queue || []);
-      } catch (error) {
+      } catch (error: any) {
         console.log("Fetch queue error:", error);
+        if (error.response?.status === 404) {
+          toast.error("Room doesn't exist");
+          router.push("/createjoin");
+          return;
+        }
         toast.error("Failed to fetch queue");
       }
     };
-    if (roomCode) fetchQueue();
-  }, [roomCode]);
+    if (roomCode) fetchQueueAndVerifyRoom();
+  }, [roomCode, router]);
 
   // Debug connected users
   useEffect(() => {
