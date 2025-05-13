@@ -28,12 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <Providers>
-        <body className={` antialiased`}>
+        <body>
           {children}
           <Toaster />
           <Script
             src="https://sdk.scdn.co/spotify-player.js"
-            strategy="beforeInteractive"
+            strategy="afterInteractive"
           />
         </body>
       </Providers>
