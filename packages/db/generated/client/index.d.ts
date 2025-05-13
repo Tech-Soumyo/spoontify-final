@@ -4638,10 +4638,12 @@ export namespace Prisma {
 
   export type QueueEntryAvgAggregateOutputType = {
     position: number | null
+    durationMs: number | null
   }
 
   export type QueueEntrySumAggregateOutputType = {
     position: number | null
+    durationMs: number | null
   }
 
   export type QueueEntryMinAggregateOutputType = {
@@ -4653,6 +4655,7 @@ export namespace Prisma {
     imageUrl: string | null
     addedById: string | null
     position: number | null
+    durationMs: number | null
   }
 
   export type QueueEntryMaxAggregateOutputType = {
@@ -4664,6 +4667,7 @@ export namespace Prisma {
     imageUrl: string | null
     addedById: string | null
     position: number | null
+    durationMs: number | null
   }
 
   export type QueueEntryCountAggregateOutputType = {
@@ -4676,16 +4680,19 @@ export namespace Prisma {
     imageUrl: number
     addedById: number
     position: number
+    durationMs: number
     _all: number
   }
 
 
   export type QueueEntryAvgAggregateInputType = {
     position?: true
+    durationMs?: true
   }
 
   export type QueueEntrySumAggregateInputType = {
     position?: true
+    durationMs?: true
   }
 
   export type QueueEntryMinAggregateInputType = {
@@ -4697,6 +4704,7 @@ export namespace Prisma {
     imageUrl?: true
     addedById?: true
     position?: true
+    durationMs?: true
   }
 
   export type QueueEntryMaxAggregateInputType = {
@@ -4708,6 +4716,7 @@ export namespace Prisma {
     imageUrl?: true
     addedById?: true
     position?: true
+    durationMs?: true
   }
 
   export type QueueEntryCountAggregateInputType = {
@@ -4720,6 +4729,7 @@ export namespace Prisma {
     imageUrl?: true
     addedById?: true
     position?: true
+    durationMs?: true
     _all?: true
   }
 
@@ -4819,6 +4829,7 @@ export namespace Prisma {
     imageUrl: string | null
     addedById: string
     position: number
+    durationMs: number | null
     _count: QueueEntryCountAggregateOutputType | null
     _avg: QueueEntryAvgAggregateOutputType | null
     _sum: QueueEntrySumAggregateOutputType | null
@@ -4850,6 +4861,7 @@ export namespace Prisma {
     imageUrl?: boolean
     addedById?: boolean
     position?: boolean
+    durationMs?: boolean
     room?: boolean | RoomDefaultArgs<ExtArgs>
     addedBy?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["queueEntry"]>
@@ -4864,6 +4876,7 @@ export namespace Prisma {
     imageUrl?: boolean
     addedById?: boolean
     position?: boolean
+    durationMs?: boolean
     room?: boolean | RoomDefaultArgs<ExtArgs>
     addedBy?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["queueEntry"]>
@@ -4878,6 +4891,7 @@ export namespace Prisma {
     imageUrl?: boolean
     addedById?: boolean
     position?: boolean
+    durationMs?: boolean
     room?: boolean | RoomDefaultArgs<ExtArgs>
     addedBy?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["queueEntry"]>
@@ -4892,9 +4906,10 @@ export namespace Prisma {
     imageUrl?: boolean
     addedById?: boolean
     position?: boolean
+    durationMs?: boolean
   }
 
-  export type QueueEntryOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "roomId" | "trackId" | "songName" | "artistName" | "albumName" | "imageUrl" | "addedById" | "position", ExtArgs["result"]["queueEntry"]>
+  export type QueueEntryOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "roomId" | "trackId" | "songName" | "artistName" | "albumName" | "imageUrl" | "addedById" | "position" | "durationMs", ExtArgs["result"]["queueEntry"]>
   export type QueueEntryInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     room?: boolean | RoomDefaultArgs<ExtArgs>
     addedBy?: boolean | UserDefaultArgs<ExtArgs>
@@ -4924,6 +4939,7 @@ export namespace Prisma {
       imageUrl: string | null
       addedById: string
       position: number
+      durationMs: number | null
     }, ExtArgs["result"]["queueEntry"]>
     composites: {}
   }
@@ -5358,6 +5374,7 @@ export namespace Prisma {
     readonly imageUrl: FieldRef<"QueueEntry", 'String'>
     readonly addedById: FieldRef<"QueueEntry", 'String'>
     readonly position: FieldRef<"QueueEntry", 'Int'>
+    readonly durationMs: FieldRef<"QueueEntry", 'Int'>
   }
     
 
@@ -5832,7 +5849,8 @@ export namespace Prisma {
     albumName: 'albumName',
     imageUrl: 'imageUrl',
     addedById: 'addedById',
-    position: 'position'
+    position: 'position',
+    durationMs: 'durationMs'
   };
 
   export type QueueEntryScalarFieldEnum = (typeof QueueEntryScalarFieldEnum)[keyof typeof QueueEntryScalarFieldEnum]
@@ -6179,6 +6197,7 @@ export namespace Prisma {
     imageUrl?: StringNullableFilter<"QueueEntry"> | string | null
     addedById?: StringFilter<"QueueEntry"> | string
     position?: IntFilter<"QueueEntry"> | number
+    durationMs?: IntNullableFilter<"QueueEntry"> | number | null
     room?: XOR<RoomScalarRelationFilter, RoomWhereInput>
     addedBy?: XOR<UserScalarRelationFilter, UserWhereInput>
   }
@@ -6193,6 +6212,7 @@ export namespace Prisma {
     imageUrl?: SortOrderInput | SortOrder
     addedById?: SortOrder
     position?: SortOrder
+    durationMs?: SortOrderInput | SortOrder
     room?: RoomOrderByWithRelationInput
     addedBy?: UserOrderByWithRelationInput
   }
@@ -6211,6 +6231,7 @@ export namespace Prisma {
     imageUrl?: StringNullableFilter<"QueueEntry"> | string | null
     addedById?: StringFilter<"QueueEntry"> | string
     position?: IntFilter<"QueueEntry"> | number
+    durationMs?: IntNullableFilter<"QueueEntry"> | number | null
     room?: XOR<RoomScalarRelationFilter, RoomWhereInput>
     addedBy?: XOR<UserScalarRelationFilter, UserWhereInput>
   }, "id" | "roomId_position">
@@ -6225,6 +6246,7 @@ export namespace Prisma {
     imageUrl?: SortOrderInput | SortOrder
     addedById?: SortOrder
     position?: SortOrder
+    durationMs?: SortOrderInput | SortOrder
     _count?: QueueEntryCountOrderByAggregateInput
     _avg?: QueueEntryAvgOrderByAggregateInput
     _max?: QueueEntryMaxOrderByAggregateInput
@@ -6245,6 +6267,7 @@ export namespace Prisma {
     imageUrl?: StringNullableWithAggregatesFilter<"QueueEntry"> | string | null
     addedById?: StringWithAggregatesFilter<"QueueEntry"> | string
     position?: IntWithAggregatesFilter<"QueueEntry"> | number
+    durationMs?: IntNullableWithAggregatesFilter<"QueueEntry"> | number | null
   }
 
   export type UserCreateInput = {
@@ -6469,6 +6492,7 @@ export namespace Prisma {
     albumName: string
     imageUrl?: string | null
     position: number
+    durationMs?: number | null
     room: RoomCreateNestedOneWithoutQueueInput
     addedBy: UserCreateNestedOneWithoutAddedQueueEntriesInput
   }
@@ -6483,6 +6507,7 @@ export namespace Prisma {
     imageUrl?: string | null
     addedById: string
     position: number
+    durationMs?: number | null
   }
 
   export type QueueEntryUpdateInput = {
@@ -6493,6 +6518,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
     room?: RoomUpdateOneRequiredWithoutQueueNestedInput
     addedBy?: UserUpdateOneRequiredWithoutAddedQueueEntriesNestedInput
   }
@@ -6507,6 +6533,7 @@ export namespace Prisma {
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     addedById?: StringFieldUpdateOperationsInput | string
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type QueueEntryCreateManyInput = {
@@ -6519,6 +6546,7 @@ export namespace Prisma {
     imageUrl?: string | null
     addedById: string
     position: number
+    durationMs?: number | null
   }
 
   export type QueueEntryUpdateManyMutationInput = {
@@ -6529,6 +6557,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type QueueEntryUncheckedUpdateManyInput = {
@@ -6541,6 +6570,7 @@ export namespace Prisma {
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     addedById?: StringFieldUpdateOperationsInput | string
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -6890,10 +6920,12 @@ export namespace Prisma {
     imageUrl?: SortOrder
     addedById?: SortOrder
     position?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type QueueEntryAvgOrderByAggregateInput = {
     position?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type QueueEntryMaxOrderByAggregateInput = {
@@ -6905,6 +6937,7 @@ export namespace Prisma {
     imageUrl?: SortOrder
     addedById?: SortOrder
     position?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type QueueEntryMinOrderByAggregateInput = {
@@ -6916,10 +6949,12 @@ export namespace Prisma {
     imageUrl?: SortOrder
     addedById?: SortOrder
     position?: SortOrder
+    durationMs?: SortOrder
   }
 
   export type QueueEntrySumOrderByAggregateInput = {
     position?: SortOrder
+    durationMs?: SortOrder
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -7558,6 +7593,7 @@ export namespace Prisma {
     albumName: string
     imageUrl?: string | null
     position: number
+    durationMs?: number | null
     room: RoomCreateNestedOneWithoutQueueInput
   }
 
@@ -7570,6 +7606,7 @@ export namespace Prisma {
     albumName: string
     imageUrl?: string | null
     position: number
+    durationMs?: number | null
   }
 
   export type QueueEntryCreateOrConnectWithoutAddedByInput = {
@@ -7662,6 +7699,7 @@ export namespace Prisma {
     imageUrl?: StringNullableFilter<"QueueEntry"> | string | null
     addedById?: StringFilter<"QueueEntry"> | string
     position?: IntFilter<"QueueEntry"> | number
+    durationMs?: IntNullableFilter<"QueueEntry"> | number | null
   }
 
   export type UserCreateWithoutOwnedRoomsInput = {
@@ -7729,6 +7767,7 @@ export namespace Prisma {
     albumName: string
     imageUrl?: string | null
     position: number
+    durationMs?: number | null
     addedBy: UserCreateNestedOneWithoutAddedQueueEntriesInput
   }
 
@@ -7741,6 +7780,7 @@ export namespace Prisma {
     imageUrl?: string | null
     addedById: string
     position: number
+    durationMs?: number | null
   }
 
   export type QueueEntryCreateOrConnectWithoutRoomInput = {
@@ -8122,6 +8162,7 @@ export namespace Prisma {
     albumName: string
     imageUrl?: string | null
     position: number
+    durationMs?: number | null
   }
 
   export type RoomUpdateWithoutOwnerInput = {
@@ -8169,6 +8210,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
     room?: RoomUpdateOneRequiredWithoutQueueNestedInput
   }
 
@@ -8181,6 +8223,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type QueueEntryUncheckedUpdateManyWithoutAddedByInput = {
@@ -8192,6 +8235,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type RoomParticipantCreateManyRoomInput = {
@@ -8207,6 +8251,7 @@ export namespace Prisma {
     imageUrl?: string | null
     addedById: string
     position: number
+    durationMs?: number | null
   }
 
   export type RoomParticipantUpdateWithoutRoomInput = {
@@ -8229,6 +8274,7 @@ export namespace Prisma {
     albumName?: StringFieldUpdateOperationsInput | string
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
     addedBy?: UserUpdateOneRequiredWithoutAddedQueueEntriesNestedInput
   }
 
@@ -8241,6 +8287,7 @@ export namespace Prisma {
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     addedById?: StringFieldUpdateOperationsInput | string
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
   export type QueueEntryUncheckedUpdateManyWithoutRoomInput = {
@@ -8252,6 +8299,7 @@ export namespace Prisma {
     imageUrl?: NullableStringFieldUpdateOperationsInput | string | null
     addedById?: StringFieldUpdateOperationsInput | string
     position?: IntFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
   }
 
 
