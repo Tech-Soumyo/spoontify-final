@@ -63,6 +63,7 @@ model QueueEntry {
   imageUrl   String? @db.VarChar(2048) // URL to album art/song picture
   addedById  String
   position   Int // Order in the queue  
+  durationMs Int?
   room       Room    @relation(fields: [roomId], references: [id])
   addedBy    User    @relation(fields: [addedById], references: [id])
 

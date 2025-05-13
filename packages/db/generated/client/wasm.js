@@ -154,7 +154,8 @@ exports.Prisma.QueueEntryScalarFieldEnum = {
   albumName: 'albumName',
   imageUrl: 'imageUrl',
   addedById: 'addedById',
-  position: 'position'
+  position: 'position',
+  durationMs: 'durationMs'
 };
 
 exports.Prisma.SortOrder = {
