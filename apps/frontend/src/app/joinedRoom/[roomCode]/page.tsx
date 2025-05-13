@@ -22,15 +22,15 @@ export default function JoinedRoomPage() {
   const router = useRouter();
   const { connectedUsers, leaveRoom, socket, isOwner } = useSocket(roomCode);
 
-  // States for search
+  // search
   const [searchResults, setSearchResults] = useState<track[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // States for queue
+  // queue
   const [queue, setQueue] = useState<track[]>([]);
 
-  // States for playback
+  // playback
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [player, setPlayer] = useState<Spotify.Player | null>(null);
   const [currentTrack, setCurrentTrack] = useState<track | null>(null);
@@ -38,7 +38,7 @@ export default function JoinedRoomPage() {
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPlayedTrackIdRef = useRef<string | null>(null);
-  const isPlayingTrackRef = useRef<boolean>(false); // Track if a play is in progress
+  const isPlayingTrackRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (session?.error) {
