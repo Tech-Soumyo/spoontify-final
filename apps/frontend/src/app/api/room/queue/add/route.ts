@@ -1,11 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@repo/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/nextAuth";
 import axios from "axios";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
