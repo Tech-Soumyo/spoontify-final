@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://spotify2_owner:npg_Zn1DAWu0oyim@ep-raspy-dawn-a13p03mt-pooler.ap-southeast-1.aws.neon.tech/spotify2?sslmode=require"
+  url      = "postgresql://spoontify-chat_owner:npg_cDNJ9aZGXq4M@ep-twilight-tooth-a4u1h1h6.us-east-1.aws.neon.tech/spoontify-chat?sslmode=require"
 }
 generator client {
   provider = "prisma-client-js"
