@@ -176,6 +176,23 @@ const activeRooms = new Set<string>();
             id: p.user.id,
             name: p.user.name,
           }));
+          const messages = await prisma.chatMessage.findMany({
+            where: { roomId: room.id },
+            orderBy: { createdAt: "asc" },
+            take: 50,
+            include: { user: { select: { name: true } } },
+          });
+
+          socket.emit(
+            "chatHistory",
+            messages.map((msg) => ({
+              id: msg.id,
+              userId: msg.userId,
+              userName: msg.user.name,
+              content: msg.content,
+              createdAt: msg.createdAt,
+            }))
+          );
 
           // Only notify of new user if they weren't already in the room
           if (!existing) {
@@ -233,6 +250,9 @@ const activeRooms = new Set<string>();
             if (isOwner) {
               // Owner leaving, close the room
               await prisma.$transaction([
+                prisma.chatMessage.deleteMany({
+                  where: { roomId: room.id },
+                }),
                 prisma.queueEntry.deleteMany({ where: { roomId: room.id } }),
                 prisma.roomParticipant.deleteMany({
                   where: { roomId: room.id },
@@ -287,6 +307,58 @@ const activeRooms = new Set<string>();
       socket.on("queueUpdated", ({ roomCode, queue }) => {
         io.to(roomCode).emit("queueUpdated", { queue });
       });
+
+      socket.on(
+        "sendMessage",
+        async (data: { roomCode: string; message: string }, callback) => {
+          try {
+            const user = (socket.data as SocketData).user;
+            const room = await prisma.room.findUnique({
+              where: { roomCode: data.roomCode },
+            });
+            if (!room) {
+              return callback({ error: "Room not found" });
+            }
+
+            const participant = await prisma.roomParticipant.findUnique({
+              where: {
+                userId_roomId: { userId: user.userId, roomId: room.id },
+              },
+            });
+            if (!participant) {
+              return callback({ error: "You are not in this room" });
+            }
+
+            if (!data.message.trim() || data.message.length > 500) {
+              return callback({
+                error:
+                  "Invalid message: must be non-empty and under 500 characters",
+              });
+            }
+
+            const chatMessage = await prisma.chatMessage.create({
+              data: {
+                roomId: room.id,
+                userId: user.userId,
+                content: data.message,
+              },
+            });
+
+            io.to(data.roomCode).emit("newMessage", {
+              id: chatMessage.id,
+              userId: user.userId,
+              userName: user.name,
+              content: chatMessage.content,
+              createdAt: chatMessage.createdAt,
+            });
+
+            callback({ success: true });
+          } catch (error) {
+            console.error("Error sending message:", error);
+            callback({ error: "Failed to send message" });
+          }
+        }
+      );
 
       socket.on(
         "playbackUpdate",
