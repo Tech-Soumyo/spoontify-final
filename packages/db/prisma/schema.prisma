@@ -21,7 +21,8 @@ model User {
   tokenExpiresAt      DateTime?  
   ownedRooms          Room[]           @relation("RoomOwner")
   participatedRooms   RoomParticipant[]
-  addedQueueEntries   QueueEntry[]  
+  addedQueueEntries   QueueEntry[] 
+  chatMessages        ChatMessage[] 
   @@index([email])
   @@index([spotifyId])
 }
@@ -33,6 +34,7 @@ model Room {
   owner        User     @relation("RoomOwner", fields: [ownerId], references: [id])
   participants RoomParticipant[]
   queue        QueueEntry[]
+  chat         ChatMessage[]
   createdAt    DateTime @default(now())  
   @@index([roomCode])
 }
@@ -62,3 +64,14 @@ model QueueEntry {
   @@index([roomId])
 }
 
+model ChatMessage {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  roomId    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  room      Room     @relation(fields: [roomId], references: [id])
+  @@index([roomId])
+  @@index([userId])
+}
