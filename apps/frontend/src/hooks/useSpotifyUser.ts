@@ -14,7 +14,7 @@ export const getSpotifyUser = async (
     // console.log("useSpotifyUser.ts", response.data);
     return response.data; // Axios already parses the response as JSON
   } catch (error: any) {
-    console.error("Error fetching Spotify user data:", error);
+    console.log("Error fetching Spotify user data:", error);
     throw error; // Re-throw the error to handle it in the calling function
   }
 };
