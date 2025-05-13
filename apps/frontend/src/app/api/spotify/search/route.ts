@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@repo/db";
 import axios from "axios";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 import { track } from "@/hooks/useSpotifySearch";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { roomCode, query } = body;
