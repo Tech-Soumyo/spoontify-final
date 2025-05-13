@@ -1,6 +1,6 @@
 "use client";
 
-import { track } from "@/app/joinedRoom/[roomCode]/page";
+import { track } from "@/hooks/useSpotySong";
 import { useState } from "react";
 
 type SearchSectionProps = {
