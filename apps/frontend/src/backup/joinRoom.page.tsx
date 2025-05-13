@@ -87,7 +87,7 @@ export default function JoinedRoomPage() {
         }));
         setSearchResults(formattedResults || []);
       } catch (error: any) {
-        setSearchError(error.message || "Failed to search songs");
+        setSearchError(error.message || "Failed to search sogs");
         toast.error(error.message || "Failed to search songs");
       } finally {
         setSearchLoading(false);
