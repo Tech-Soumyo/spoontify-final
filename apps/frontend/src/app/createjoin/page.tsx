@@ -2,15 +2,32 @@
 import { useSocket } from "@/hooks/Socket/useSocket.hook";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 export default function CreateJoinRoom() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [roomCode, setRoomCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { createRoom, handleJoinRoom } = useSocket();
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+      toast.error(`You must be logged in to create or join a room`);
+    }
+  }, [status, router]);
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        Loading...
+      </div>
+    );
+  }
+
   const handleCreateRoom = () => {
     if (!session?.user?.spotifyId || !session?.accessToken) {
       setError("For Room Creation, you must connect with Spotify first.");
@@ -64,7 +81,6 @@ export default function CreateJoinRoom() {
           {loading ? "Joining..." : "Join Room"}
         </button>
 
-        {/* Create Room + Spotify Login */}
         <div className="flex gap-3">
           <button
             onClick={() => {
