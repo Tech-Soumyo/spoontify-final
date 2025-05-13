@@ -12,6 +12,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 import searchSongs from "@/hooks/useSpotifySearch";
+import { ChatSection } from "@/components/custom/ChatSection";
 
 export default function JoinedRoomPage() {
   const params = useParams();
@@ -592,6 +593,7 @@ export default function JoinedRoomPage() {
           onSeek={handleSeek}
           isOwner={isOwner}
         />
+        <ChatSection roomCode={roomCode as string} />
       </div>
     </div>
   );
