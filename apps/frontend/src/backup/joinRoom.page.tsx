@@ -1,4 +1,4 @@
-// Everything running well, now I am gonna implement chat
+// all is implemented
 "use client";
 import { Header } from "@/components/custom/Header";
 import { NowPlaying } from "@/components/custom/NowPlaying";
@@ -13,6 +13,7 @@ import axios from "axios";
 import { toast } from "sonner";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 import searchSongs from "@/hooks/useSpotifySearch";
+import { ChatSection } from "@/components/custom/ChatSection";
 
 export default function JoinedRoomPage() {
   const params = useParams();
@@ -23,15 +24,15 @@ export default function JoinedRoomPage() {
   const router = useRouter();
   const { connectedUsers, leaveRoom, socket, isOwner } = useSocket(roomCode);
 
-  // States for search
+  // search
   const [searchResults, setSearchResults] = useState<track[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // States for queue
+  // queue
   const [queue, setQueue] = useState<track[]>([]);
 
-  // States for playback
+  // playback
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [player, setPlayer] = useState<Spotify.Player | null>(null);
   const [currentTrack, setCurrentTrack] = useState<track | null>(null);
@@ -39,7 +40,7 @@ export default function JoinedRoomPage() {
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPlayedTrackIdRef = useRef<string | null>(null);
-  const isPlayingTrackRef = useRef<boolean>(false); // Track if a play is in progress
+  const isPlayingTrackRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (session?.error) {
@@ -87,7 +88,7 @@ export default function JoinedRoomPage() {
         }));
         setSearchResults(formattedResults || []);
       } catch (error: any) {
-        setSearchError(error.message || "Failed to search sogs");
+        setSearchError(error.message || "Failed to search songs");
         toast.error(error.message || "Failed to search songs");
       } finally {
         setSearchLoading(false);
@@ -593,6 +594,7 @@ export default function JoinedRoomPage() {
           onSeek={handleSeek}
           isOwner={isOwner}
         />
+        <ChatSection roomCode={roomCode as string} />
       </div>
     </div>
   );
