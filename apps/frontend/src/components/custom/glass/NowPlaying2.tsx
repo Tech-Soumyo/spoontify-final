@@ -44,7 +44,7 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
     [isOwner, currentTrack?.duration_ms, onSeek]
   );
   return (
-    <div className="bg-black/40 p-3 rounded-lg">
+    <div className="bg-black/10 p-3 rounded-lg shadow shadow-white">
       {currentTrack ? (
         <div className="space-y-2">
           {/* Top section with song info */}
