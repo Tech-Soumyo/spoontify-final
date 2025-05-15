@@ -16,7 +16,7 @@ import { QueueSection } from "@/components/custom/glass/QueueSection";
 import { SearchSection } from "@/components/custom/glass/SearchSection2";
 import { NowPlaying } from "@/components/custom/glass/NowPlaying2";
 import { ChatSection } from "@/components/custom/glass/ChatSection2";
-import { Header } from "@/components/custom/Header";
+import { CirclePower } from "lucide-react";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
 
 export default function JoinedRoomPage() {
@@ -583,18 +583,6 @@ export default function JoinedRoomPage() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40" />
       )}
 
-      {/* Header */}
-      <div className="relative z-10 mb-4">
-        <Header
-          connectedUsers={connectedUsers}
-          roomCode={roomCode as string}
-          onLeave={() => {
-            leaveRoom(roomCode);
-            router.push("/createjoin");
-          }}
-        />
-      </div>
-
       {/* Content Container with glass effect overlay */}
       <div className="relative h-full min-h-screen bg-white/10">
         <div className="container mx-auto p-6">
@@ -607,8 +595,31 @@ export default function JoinedRoomPage() {
                 </h1>
               </div>
 
-              {/* Now Playing Section */}
+              {/* Leave Room Button */}
               <div className="p-4">
+                <button
+                  onClick={() => {
+                    leaveRoom(roomCode);
+                    router.push("/createjoin");
+                  }}
+                  className="w-16 h-16 aspect-square rounded-full bg-red-500/30 backdrop-blur-sm border border-red-500/50 text-white hover:bg-red-500/40 transition-all duration-300 shadow-lg hover:shadow-red-500/20 flex items-center justify-center mx-auto"
+                >
+                  <CirclePower className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Queue Section - with scrollable area */}
+              <div className="flex-1 overflow-hidden mt-10">
+                <QueueSection
+                  queue={queue}
+                  isOwner={isOwner}
+                  onPlayTrack={handlePlayTrack}
+                  onRemoveTrack={handleRemoveTrack}
+                />
+              </div>
+
+              {/* Now Playing Section - Moved to bottom */}
+              <div className="p-4 mt-auto border-t border-white/20">
                 <NowPlaying
                   currentTrack={currentTrack}
                   isPlaying={isPlaying}
@@ -617,16 +628,6 @@ export default function JoinedRoomPage() {
                   onSkip={handleSkip}
                   onSeek={handleSeek}
                   isOwner={isOwner}
-                />
-              </div>
-
-              {/* Queue Section - with scrollable area */}
-              <div className="flex-1 overflow-hidden">
-                <QueueSection
-                  queue={queue}
-                  isOwner={isOwner}
-                  onPlayTrack={handlePlayTrack}
-                  onRemoveTrack={handleRemoveTrack}
                 />
               </div>
             </div>
