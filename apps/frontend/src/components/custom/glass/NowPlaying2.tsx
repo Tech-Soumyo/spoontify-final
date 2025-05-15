@@ -1,7 +1,8 @@
 "use client";
 
 import { track } from "@/hooks/useSpotySong";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { VolumeX, Volume2, Volume } from "lucide-react";
 
 type NowPlayingProps = {
   currentTrack: track | null;
@@ -11,6 +12,8 @@ type NowPlayingProps = {
   onSkip: () => void;
   onSeek: (positionMs: number) => void;
   isOwner: boolean;
+  volume?: number;
+  onVolumeChange?: (volume: number) => void;
 };
 
 const formatDuration = (ms: number): string => {
@@ -28,7 +31,11 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
   onSkip,
   onSeek,
   isOwner,
+  volume = 1,
+  onVolumeChange,
 }) => {
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+
   const handleProgressBarClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!isOwner || !currentTrack?.duration_ms) return;
@@ -43,6 +50,23 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
     },
     [isOwner, currentTrack?.duration_ms, onSeek]
   );
+
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (onVolumeChange) {
+        const newVolume = parseFloat(e.target.value);
+        onVolumeChange(newVolume);
+      }
+    },
+    [onVolumeChange]
+  );
+
+  const getVolumeIcon = () => {
+    if (volume === 0) return <VolumeX size={16} />;
+    if (volume < 0.5) return <Volume size={16} />;
+    return <Volume2 size={16} />;
+  };
+
   return (
     <div className="bg-black/10 p-3 rounded-lg shadow shadow-white">
       {currentTrack ? (
@@ -80,9 +104,33 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
                 >
                   ⏭️
                 </button>
+                {/* Volume control toggle button */}
+                <button
+                  onClick={() => setShowVolumeSlider(!showVolumeSlider)}
+                  className="text-white/90 p-1 rounded hover:bg-white/10 transition-all duration-200"
+                >
+                  {getVolumeIcon()}
+                </button>
               </div>
             )}
           </div>
+
+          {/* Volume control slider */}
+          {isOwner && showVolumeSlider && (
+            <div className="flex items-center gap-2 mt-1 mb-2">
+              <VolumeX size={14} className="text-white/70" />
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="w-full h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-400"
+              />
+              <Volume2 size={14} className="text-white/70" />
+            </div>
+          )}
 
           {/* Progress bar section */}
           <div className="space-y-1">
