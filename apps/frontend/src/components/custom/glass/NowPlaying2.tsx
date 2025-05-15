@@ -43,63 +43,65 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
     },
     [isOwner, currentTrack?.duration_ms, onSeek]
   );
-
   return (
-    <div className="backdrop-blur-md bg-white/5 rounded-xl border border-white/10 p-4">
+    <div className="bg-black/40 p-3 rounded-lg">
       {currentTrack ? (
-        <div className="space-y-4">
-          <div className="aspect-square w-full max-w-[300px] mx-auto relative overflow-hidden rounded-lg">
-            <img
-              src={currentTrack.album.imageUrl}
-              alt={currentTrack.album.name}
-              className="w-full h-full object-cover"
-            />
+        <div className="space-y-2">
+          {/* Top section with song info */}
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 relative overflow-hidden rounded">
+              <img
+                src={currentTrack.album.imageUrl}
+                alt={currentTrack.album.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-medium text-white/90 truncate">
+                {currentTrack.name}
+              </h2>
+              <p className="text-xs text-white/70 truncate">
+                {currentTrack.artists.map((a) => a.name).join(", ")}
+              </p>
+            </div>
+
+            {isOwner && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onPlayPause}
+                  className="text-white/90 p-1 rounded hover:bg-white/10 transition-all duration-200"
+                >
+                  {isPlaying ? "⏸️" : "▶️"}
+                </button>
+                <button
+                  onClick={onSkip}
+                  className="text-white/90 p-1 rounded hover:bg-white/10 transition-all duration-200"
+                >
+                  ⏭️
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="space-y-1 text-center">
-            <h2 className="text-lg font-semibold text-white/90">
-              {currentTrack.name}
-            </h2>
-            <p className="text-sm text-white/70">
-              {currentTrack.artists.map((a) => a.name).join(", ")}
-            </p>
-          </div>
-
-          <div className="space-y-2">
+          {/* Progress bar section */}
+          <div className="space-y-1">
             <div
-              className="h-1 bg-white/10 rounded-full overflow-hidden cursor-pointer"
+              className="h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group relative"
               onClick={isOwner ? handleProgressBarClick : undefined}
             >
               <div
-                className="h-full bg-white/80 transition-all duration-100"
+                className="h-full bg-orange-400/80 transition-all duration-100 group-hover:bg-orange-400"
                 style={{
                   width: `${(playbackProgress / (currentTrack.duration_ms || 1)) * 100}%`,
                 }}
               />
             </div>
-
-            <div className="flex justify-between text-sm text-white/60">
+            <div className="flex justify-between text-[10px] text-white/60 px-0.5">
               <span>{formatDuration(playbackProgress)}</span>
               <span>{formatDuration(currentTrack.duration_ms || 0)}</span>
-            </div>
+            </div>{" "}
           </div>
-
-          {isOwner && (
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={onPlayPause}
-                className="bg-white/10 hover:bg-white/20 text-white/90 px-6 py-2 rounded-full font-medium transition"
-              >
-                {isPlaying ? "Pause" : "Play"}
-              </button>
-              <button
-                onClick={onSkip}
-                className="bg-white/10 hover:bg-white/20 text-white/90 px-6 py-2 rounded-full font-medium transition"
-              >
-                Skip
-              </button>
-            </div>
-          )}
         </div>
       ) : (
         <div className="text-center py-8">
