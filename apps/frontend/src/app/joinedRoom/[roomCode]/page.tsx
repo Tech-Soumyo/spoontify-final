@@ -595,21 +595,50 @@ export default function JoinedRoomPage() {
                 </h1>
               </div>
 
-              {/* Leave Room Button */}
-              <div className="p-4">
+              {/* Leave Room Button and Copy Code Button */}
+              <div className="p-4 flex justify-center items-center gap-4">
                 <button
                   onClick={() => {
                     leaveRoom(roomCode);
                     router.push("/createjoin");
                   }}
-                  className="w-16 h-16 aspect-square rounded-full bg-red-500/30 backdrop-blur-sm border border-red-500/50 text-white hover:bg-red-500/40 transition-all duration-300 shadow-lg hover:shadow-red-500/20 flex items-center justify-center mx-auto"
+                  className="w-16 h-16 aspect-square rounded-full bg-red-500/30 backdrop-blur-sm border border-red-500/50 text-white hover:bg-red-500/40 transition-all duration-300 shadow-lg hover:shadow-red-500/20 flex items-center justify-center"
                 >
                   <CirclePower className="w-8 h-8" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (roomCode) navigator.clipboard.writeText(roomCode);
+                    toast.success("Room code copied to clipboard!");
+                  }}
+                  className="w-16 h-16 aspect-square rounded-full bg-emerald-500/30 backdrop-blur-sm border border-emerald-500/50 text-white hover:bg-emerald-500/40 transition-all duration-300 shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-8 h-8"
+                  >
+                    <rect
+                      x="9"
+                      y="9"
+                      width="13"
+                      height="13"
+                      rx="2"
+                      ry="2"
+                    ></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
                 </button>
               </div>
 
               {/* Queue Section - with scrollable area */}
-              <div className="flex-1 overflow-hidden mt-10">
+              <div className="flex-1 overflow-hidden mt-10 min-h-0">
                 <QueueSection
                   queue={queue}
                   isOwner={isOwner}
@@ -619,7 +648,7 @@ export default function JoinedRoomPage() {
               </div>
 
               {/* Now Playing Section - Moved to bottom */}
-              <div className="p-4 mt-auto border-t border-white/20">
+              <div className="p-4 mt-auto border-t border-white/20 mb-4 ">
                 <NowPlaying
                   currentTrack={currentTrack}
                   isPlaying={isPlaying}
