@@ -14,9 +14,9 @@ export const QueueSection = ({
   onRemoveTrack?: (track: track) => void;
 }) => (
   <div className="p-4">
-    <h2 className="text-xl font-semibold text-white/90 mb-4">Queue</h2>
+    <h2 className="text-xl font-semibold text-white/90 mb-4">Songs</h2>
     {queue.length === 0 ? (
-      <p className="text-white/70">No songs in queue.</p>
+      <p className="text-white/70">No songs in your hearing list.</p>
     ) : (
       <div className="space-y-2 max-h-[calc(100vh-400px)] overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
         {queue.map((queuedTrack, index) => (
