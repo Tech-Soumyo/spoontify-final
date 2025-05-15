@@ -46,6 +46,8 @@ export default function JoinedRoomPage() {
   const lastPlayedTrackIdRef = useRef<string | null>(null);
   const isPlayingTrackRef = useRef<boolean>(false);
 
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
   useEffect(() => {
     if (session?.error) {
       toast.error(`Session error: ${session.error}`);
@@ -576,6 +578,11 @@ export default function JoinedRoomPage() {
         quality={100}
       />
 
+      {/* Blur Overlay */}
+      {showSearchResults && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40" />
+      )}
+
       {/* Header */}
       <div className="relative z-10 mb-4">
         <Header
@@ -634,11 +641,16 @@ export default function JoinedRoomPage() {
                   onAddToQueue={handleAddToQueue}
                   loading={searchLoading}
                   error={searchError}
+                  onShowResultsChange={setShowSearchResults}
                 />
               </div>
 
               {/* Chat area */}
-              <div className="backdrop-blur-md bg-black/20 rounded-2xl w-full flex-1 min-h-[70vh] border border-white/30 shadow-xl z-0">
+              <div
+                className={`backdrop-blur-md bg-black/20 rounded-2xl w-full flex-1 min-h-[70vh] border border-white/30 shadow-xl ${
+                  showSearchResults ? "z-30" : "z-0"
+                }`}
+              >
                 {roomCode && <ChatSection roomCode={roomCode} />}
               </div>
             </div>
