@@ -1,7 +1,6 @@
 "use client";
 
-import { track } from "@/hooks/useSpotySong"; // Ensure correct import (useSpotifySong if typo)
-import { Button } from "../ui/button";
+import { track } from "@/hooks/useSpotySong";
 import { useCallback } from "react";
 
 type NowPlayingProps = {
@@ -10,11 +9,12 @@ type NowPlayingProps = {
   playbackProgress: number;
   onPlayPause: () => void;
   onSkip: () => void;
-  onSeek: (positionMs: number) => void; // New prop for seeking
+  onSeek: (positionMs: number) => void;
   isOwner: boolean;
+  volume: number;
+  onVolumeChange: (volume: number) => void;
 };
 
-// Format duration in MM:SS
 const formatDuration = (ms: number): string => {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
@@ -30,8 +30,9 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
   onSkip,
   onSeek,
   isOwner,
+  volume,
+  onVolumeChange,
 }) => {
-  // Handle progress bar click for seeking
   const handleProgressBarClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!isOwner || !currentTrack?.duration_ms) return;
@@ -47,65 +48,89 @@ export const NowPlaying: React.FC<NowPlayingProps> = ({
     [isOwner, currentTrack?.duration_ms, onSeek]
   );
 
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = Number(e.target.value);
+      onVolumeChange(newVolume);
+    },
+    [onVolumeChange]
+  );
+
   return (
-    <div className="p-4 bg-gray-700 text-white rounded-lg shadow-md m-4">
+    <div className="bg-black/10 p-3 rounded-lg shadow shadow-white">
       {currentTrack ? (
-        <>
-          <h2 className="text-xl font-semibold">{currentTrack.name}</h2>
-          <img
-            src={currentTrack.album.imageUrl}
-            alt={currentTrack.album.name}
-            width={100} // Increased size for better visibility
-            height={100}
-            className="mt-2"
-          />
-          <p className="text-sm text-gray-400">
-            {formatDuration(Number(currentTrack.duration_ms))}
-          </p>
-          <div
-            className={`w-full bg-gray-600 rounded-full h-2.5 mt-2 ${
-              isOwner ? "cursor-pointer hover:bg-gray-500" : ""
-            }`}
-            onClick={isOwner ? handleProgressBarClick : undefined}
-          >
-            <div
-              className="bg-blue-500 h-2.5 rounded-full transition-all duration-100"
-              style={{
-                width: `${
-                  currentTrack.duration_ms
-                    ? (playbackProgress / currentTrack.duration_ms) * 100
-                    : 0
-                }%`,
-              }}
-            ></div>
-          </div>
-          {isOwner && (
-            <div className="flex space-x-4 mt-4">
-              <button
-                onClick={onPlayPause}
-                className="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                {isPlaying ? "Pause" : "Play"}
-              </button>
-              <button
-                onClick={onSkip}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-              >
-                Skip
-              </button>
-              {/* Debug button (remove in production) */}
-              <Button
-                onClick={() => {
-                  console.log("Playback progress:", playbackProgress);
-                }}
-              >
-                Progress
-              </Button>
+        <div className="space-y-2">
+          {/* Top section with song info */}
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 relative overflow-hidden rounded">
+              <img
+                src={currentTrack.album.imageUrl}
+                alt={currentTrack.album.name}
+                className="w-full h-full object-cover"
+              />
             </div>
-          )}
-        </>
+
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-medium text-white/90 truncate">
+                {currentTrack.name}
+              </h2>
+              <p className="text-xs text-white/70 truncate">
+                {currentTrack.artists.map((a) => a.name).join(", ")}
+              </p>
+            </div>
+
+            {isOwner && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onPlayPause}
+                  className="text-white/90 p-1 rounded hover:bg-white/10 transition-all duration-200"
+                >
+                  {isPlaying ? "⏸️" : "▶️"}
+                </button>
+                <button
+                  onClick={onSkip}
+                  className="text-white/90 p-1 rounded hover:bg-white/10 transition-all duration-200"
+                >
+                  ⏭️
+                </button>
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-white/90">🔊</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={volume * 100}
+                    onChange={handleVolumeChange}
+                    className="w-20 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-400"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Progress bar section */}
+          <div className="space-y-1">
+            <div
+              className="h-1.5 bg-white/10 rounded-full overflow-hidden cursor-pointer group relative"
+              onClick={isOwner ? handleProgressBarClick : undefined}
+            >
+              <div
+                className="h-full bg-orange-400/80 transition-all duration-100 group-hover:bg-orange-400"
+                style={{
+                  width: `${(playbackProgress / (currentTrack.duration_ms || 1)) * 100}%`,
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-white/60 px-0.5">
+              <span>{formatDuration(playbackProgress)}</span>
+              <span>{formatDuration(currentTrack.duration_ms || 0)}</span>
+            </div>{" "}
+          </div>
+        </div>
       ) : (
-        <p className="text-gray-300">No track is currently playing.</p>
+        <div className="text-center py-8">
+          <p className="text-white/60">No track playing</p>
+        </div>
       )}
     </div>
   );
