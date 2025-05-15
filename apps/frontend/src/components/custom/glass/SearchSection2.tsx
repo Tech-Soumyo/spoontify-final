@@ -9,6 +9,7 @@ type SearchSectionProps = {
   onAddToQueue: (track: track) => void;
   loading: boolean;
   error: string | null;
+  onShowResultsChange?: (showing: boolean) => void;
 };
 
 export const SearchSection: React.FC<SearchSectionProps> = ({
@@ -17,6 +18,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   onAddToQueue,
   loading,
   error,
+  onShowResultsChange,
 }) => {
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
@@ -25,11 +27,13 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
     e.preventDefault();
     onSearch(query);
     setShowResults(true);
+    onShowResultsChange?.(true);
   };
 
   const handleClose = () => {
     setShowResults(false);
     setQuery("");
+    onShowResultsChange?.(false);
   };
 
   return (
