@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       params: {
         q: query.trim(),
         type: "track",
-        limit: 10,
+        limit: 4,
         market: "from_token", // Ensures results are available in owner's market
       },
     });
