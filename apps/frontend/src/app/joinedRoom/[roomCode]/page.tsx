@@ -1,18 +1,23 @@
 "use client";
-import { Header } from "@/components/custom/Header";
-import { NowPlaying } from "@/components/custom/NowPlaying";
-import { SearchSection } from "@/components/custom/SearchSection";
-import { QueueSection } from "@/components/custom/QueueList";
-import { useSocket } from "@/hooks/Socket/useSocket.hook";
-import { track } from "@/types/song.type";
-import { useSession } from "next-auth/react";
+
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useRef } from "react";
-import axios from "axios";
+import { useSession } from "next-auth/react";
+import { useSocket } from "@/hooks/Socket/useSocket.hook";
+import { track } from "@/hooks/useSpotySong";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { searchSongs } from "@/hooks/useSpotifySearch";
+import axios from "axios";
+import Image from "next/image";
+import img from "../../../../public/interior.jpg";
+
+// Import components
+import { QueueSection } from "@/components/custom/glass/QueueSection";
+import { SearchSection } from "@/components/custom/glass/SearchSection2";
+import { NowPlaying } from "@/components/custom/glass/NowPlaying2";
+import { ChatSection } from "@/components/custom/glass/ChatSection2";
+import { Header } from "@/components/custom/Header";
 import refreshSpotifyToken from "@/hooks/refreshToaken";
-import searchSongs from "@/hooks/useSpotifySearch";
-import { ChatSection } from "@/components/custom/ChatSection";
 
 export default function JoinedRoomPage() {
   const params = useParams();
@@ -561,39 +566,84 @@ export default function JoinedRoomPage() {
   }, [connectedUsers]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <Header
-        connectedUsers={connectedUsers}
-        roomCode={roomCode as string}
-        onLeave={() => {
-          leaveRoom(roomCode);
-          router.push("/createjoin");
-        }}
+    <div className="relative min-h-screen w-full">
+      {/* Background Image */}
+      <Image
+        src={img}
+        alt="Interior background"
+        fill
+        className="object-cover"
+        quality={100}
       />
-      <div className="container mx-auto p-4">
-        <SearchSection
-          onSearch={handleSearch}
-          searchResults={searchResults}
-          onAddToQueue={handleAddToQueue}
-          loading={searchLoading}
-          error={searchError}
+
+      {/* Header */}
+      <div className="relative z-10 mb-4">
+        <Header
+          connectedUsers={connectedUsers}
+          roomCode={roomCode as string}
+          onLeave={() => {
+            leaveRoom(roomCode);
+            router.push("/createjoin");
+          }}
         />
-        <QueueSection
-          queue={queue}
-          isOwner={isOwner}
-          onPlayTrack={handlePlayTrack}
-          onRemoveTrack={handleRemoveTrack}
-        />
-        <NowPlaying
-          currentTrack={currentTrack}
-          isPlaying={isPlaying}
-          playbackProgress={playbackProgress}
-          onPlayPause={handlePlayPause}
-          onSkip={handleSkip}
-          onSeek={handleSeek}
-          isOwner={isOwner}
-        />
-        <ChatSection roomCode={roomCode as string} />
+      </div>
+
+      {/* Content Container with glass effect overlay */}
+      <div className="relative h-full min-h-screen bg-white/10">
+        <div className="container mx-auto p-6">
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Sidebar with queue section & play section */}
+            <div className="backdrop-blur-md bg-black/30 rounded-2xl w-full lg:w-[400px] h-auto lg:min-h-[90vh] border border-white/30 shadow-xl flex flex-col">
+              <div className="p-4 border-b border-white/20">
+                <h1 className="text-2xl font-bold text-white/90 text-center">
+                  SPOONIFY
+                </h1>
+              </div>
+
+              {/* Now Playing Section */}
+              <div className="p-4">
+                <NowPlaying
+                  currentTrack={currentTrack}
+                  isPlaying={isPlaying}
+                  playbackProgress={playbackProgress}
+                  onPlayPause={handlePlayPause}
+                  onSkip={handleSkip}
+                  onSeek={handleSeek}
+                  isOwner={isOwner}
+                />
+              </div>
+
+              {/* Queue Section - with scrollable area */}
+              <div className="flex-1 overflow-hidden">
+                <QueueSection
+                  queue={queue}
+                  isOwner={isOwner}
+                  onPlayTrack={handlePlayTrack}
+                  onRemoveTrack={handleRemoveTrack}
+                />
+              </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col gap-4">
+              {/* Search Section */}
+              <div className="backdrop-blur-md bg-black/20 rounded-2xl w-full border border-white/30 shadow-xl relative z-50 mb-8">
+                <SearchSection
+                  onSearch={handleSearch}
+                  searchResults={searchResults}
+                  onAddToQueue={handleAddToQueue}
+                  loading={searchLoading}
+                  error={searchError}
+                />
+              </div>
+
+              {/* Chat area */}
+              <div className="backdrop-blur-md bg-black/20 rounded-2xl w-full flex-1 min-h-[70vh] border border-white/30 shadow-xl z-0">
+                {roomCode && <ChatSection roomCode={roomCode} />}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
