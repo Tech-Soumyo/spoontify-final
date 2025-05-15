@@ -105,7 +105,7 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
             </span>
           </div>
           <span className="text-emerald-400/80 text-sm font-medium px-2 py-0.5 rounded-full bg-emerald-400/10">
-            Host
+            Admin
           </span>
         </div>
 
