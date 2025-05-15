@@ -42,6 +42,7 @@ export default function JoinedRoomPage() {
   const [currentTrack, setCurrentTrack] = useState<track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackProgress, setPlaybackProgress] = useState(0);
+  const [volume, setVolume] = useState(0.5);
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastPlayedTrackIdRef = useRef<string | null>(null);
   const isPlayingTrackRef = useRef<boolean>(false);
@@ -330,6 +331,44 @@ export default function JoinedRoomPage() {
     }
   }, [player, queue, handlePlayTrack]);
 
+  // Handle volume change
+  const handleVolumeChange = useCallback(
+    async (newVolume: number, retryCount = 0) => {
+      if (!player || !deviceId || !session?.accessToken) {
+        toast.error("Spotify player not ready");
+        return;
+      }
+      try {
+        await axios.put(
+          `https://api.spotify.com/v1/me/player/volume?device_id=${deviceId}&volume_percent=${Math.round(newVolume * 100)}`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        setVolume(newVolume);
+        player.setVolume(newVolume);
+      } catch (error: any) {
+        if (error.response?.status === 401 && retryCount < 1) {
+          const newToken = await refreshSpotifyToken(session.refreshToken!);
+          if (newToken) {
+            await refreshSession();
+            handleVolumeChange(newVolume, retryCount + 1);
+          } else {
+            toast.error("Failed to refresh token");
+          }
+        } else {
+          console.log("Volume change error:", error);
+          toast.error("Failed to change volume");
+        }
+      }
+    },
+    [player, deviceId, session, refreshSession]
+  );
+
   // Load Spotify SDK script
   useEffect(() => {
     if (!isOwner || !session?.accessToken) return;
@@ -360,7 +399,7 @@ export default function JoinedRoomPage() {
         }
         cb(token);
       },
-      volume: 0.5,
+      volume: volume,
     });
 
     let isMounted = true;
@@ -657,6 +696,8 @@ export default function JoinedRoomPage() {
                   onSkip={handleSkip}
                   onSeek={handleSeek}
                   isOwner={isOwner}
+                  volume={volume}
+                  onVolumeChange={handleVolumeChange}
                 />
               </div>
             </div>
