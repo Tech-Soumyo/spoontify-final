@@ -23,6 +23,8 @@ model User {
   participatedRooms   RoomParticipant[]
   addedQueueEntries   QueueEntry[] 
   chatMessages        ChatMessage[] 
+  createdPolls        Poll[]          
+  votedPolls          PollVote[]       
   @@index([email])
   @@index([spotifyId])
 }
@@ -35,6 +37,7 @@ model Room {
   participants RoomParticipant[]
   queue        QueueEntry[]
   chat         ChatMessage[]
+  polls        Poll[]
   createdAt    DateTime @default(now())  
   @@index([roomCode])
 }
@@ -73,5 +76,36 @@ model ChatMessage {
   user      User     @relation(fields: [userId], references: [id])
   room      Room     @relation(fields: [roomId], references: [id])
   @@index([roomId])
+  @@index([userId])
+}
+
+model Poll {
+  id            String      @id @default(uuid())
+  roomId        String
+  trackId       String      // Spotify track ID
+  songName      String
+  artistName    Json        // Primary artist name (could be a JSON array if multiple)
+  albumName     String
+  imageUrl      String?     @db.VarChar(2048)
+  createdById   String
+  createdAt     DateTime    @default(now())
+  closed        Boolean     @default(false)
+  room          Room        @relation(fields: [roomId], references: [id])
+  createdBy     User        @relation(fields: [createdById], references: [id])
+  votes         PollVote[]
+  @@index([roomId])
+  @@index([createdById])
+}
+
+model PollVote {
+  id        String   @id @default(uuid())
+  pollId    String
+  userId    String
+  vote      Boolean  // true for Yes, false for No
+  createdAt DateTime @default(now())
+  poll      Poll     @relation(fields: [pollId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  @@unique([pollId, userId]) // Prevent multiple votes from the same user
+  @@index([pollId])
   @@index([userId])
 }
