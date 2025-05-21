@@ -1,5 +1,7 @@
+// chatSection.tsx
 "use client";
-import { useSocket } from "@/hooks/Socket/useSocket.hook";
+import { useSocket, Poll } from "@/hooks/Socket/useSocket.hook";
+import { useSession } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
@@ -11,14 +13,103 @@ interface ChatMessage {
   createdAt: string;
 }
 
-interface User {
-  id: string;
-  name: string;
-  isOwner?: boolean;
-}
+const PollMessage = ({ poll, roomCode }: { poll: Poll; roomCode: string }) => {
+  const { votePoll, closePoll } = useSocket(roomCode);
+  const { data: session } = useSession();
+  const userId = session?.user?.userId;
+
+  const handleVote = (vote: boolean) => {
+    votePoll(roomCode, poll.id, vote, (response) => {
+      if (response.error) {
+        toast.error(response.error);
+      } else {
+        toast.success(`Voted ${vote ? "Yes" : "No"}`);
+      }
+    });
+  };
+
+  const handleClosePoll = () => {
+    closePoll(roomCode, poll.id, (response) => {
+      if (response.error) {
+        toast.error(response.error);
+      } else {
+        toast.success(
+          response.addedToQueue
+            ? `Poll closed: Song added to queue (${response.yesPercentage?.toFixed(
+                1
+              )}% Yes)`
+            : `Poll closed: Song not added (${response.yesPercentage?.toFixed(
+                1
+              )}% Yes)`
+        );
+      }
+    });
+  };
+
+  const yesVotes = poll.votes.filter((v) => v.vote).length;
+  const totalVotes = poll.votes.length;
+  const yesPercentage = totalVotes > 0 ? (yesVotes / totalVotes) * 100 : 0;
+  const hasVoted = poll.votes.some((v) => v.userId === userId);
+
+  return (
+    <div className="group backdrop-blur-md bg-blue-500/10 rounded-lg p-3 border border-blue-500/30">
+      <div className="flex items-center gap-2">
+        <span className="text-blue-400 font-medium">{poll.createdByName}</span>
+        <span className="text-white/40 text-xs">
+          {new Date(poll.createdAt).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })}
+        </span>
+      </div>
+      <p className="text-white/90 mt-1">
+        Poll: {poll.songName} by{" "}
+        {Array.isArray(poll.artistName)
+          ? poll.artistName.join(", ")
+          : poll.artistName}
+      </p>
+      {poll.imageUrl && (
+        <img
+          src={poll.imageUrl}
+          alt={poll.albumName}
+          className="w-12 h-12 rounded-md mt-2"
+        />
+      )}
+      <p className="text-white/70 text-sm mt-1">
+        Yes Votes: {yesPercentage.toFixed(1)}% ({yesVotes}/{totalVotes})
+      </p>
+      {!poll.closed && !hasVoted && (
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={() => handleVote(true)}
+            className="bg-green-500/20 hover:bg-green-500/30 text-green-400 px-3 py-1 rounded-md text-sm"
+          >
+            Vote Yes
+          </button>
+          <button
+            onClick={() => handleVote(false)}
+            className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded-md text-sm"
+          >
+            Vote No
+          </button>
+        </div>
+      )}
+      {!poll.closed && poll.createdById === userId && (
+        <button
+          onClick={handleClosePoll}
+          className="mt-2 bg-white/10 hover:bg-white/20 text-white/90 px-3 py-1 rounded-md text-sm"
+        >
+          Close Poll
+        </button>
+      )}
+      {poll.closed && <p className="text-white/70 text-sm mt-1">Poll Closed</p>}
+    </div>
+  );
+};
 
 export function ChatSection({ roomCode }: { roomCode: string }) {
-  const { socket, connectedUsers, isOwner } = useSocket(roomCode);
+  const { socket, connectedUsers, isOwner, polls } = useSocket(roomCode);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
@@ -42,7 +133,7 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
     };
   }, []);
 
-  // Listen for new messages and chat history
+  // Listen for new messages, chat history, and polls
   useEffect(() => {
     if (!socket) return;
 
@@ -60,10 +151,10 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
     };
   }, [socket]);
 
-  // Auto-scroll to the latest message
+  // Auto-scroll to the latest message or poll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, polls]);
 
   // Handle sending a message
   const handleSendMessage = () => {
@@ -98,8 +189,7 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
       <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            {" "}
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />{" "}
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-white/90 font-medium">
               {connectedUsers[0]?.name || "Room Owner"}
             </span>
@@ -144,7 +234,7 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
                     key={user.id}
                     className="flex items-center gap-2 p-2 hover:bg-white/5 rounded-md"
                   >
-                    <div className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
                     <span className="text-white/90 text-sm">
                       {user.name}
                       {isOwner && user.id === connectedUsers[0]?.id && (
@@ -161,28 +251,47 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
         </div>
       </div>
 
-      {/* Messages Section */}
+      {/* Messages and Polls Section */}
       <div className="flex-1 space-y-4 p-4 overflow-y-auto max-h-[calc(70vh-80px)]">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className="group backdrop-blur-md bg-white/5 rounded-lg p-3 border border-white/10 "
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-emerald-400/90 font-medium">
-                {msg.userName}
-              </span>
-              <span className="text-white/40 text-xs">
-                {new Date(msg.createdAt).toLocaleTimeString("en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
-              </span>
-            </div>
-            <p className="text-white/90 mt-1">{msg.content}</p>
-          </div>
-        ))}
+        {[...messages, ...polls]
+          .sort(
+            (a, b) =>
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          )
+          .map((item) => {
+            if ("content" in item) {
+              // Render chat message
+              return (
+                <div
+                  key={item.id}
+                  className="group backdrop-blur-md bg-white/5 rounded-lg p-3 border border-white/10"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-emerald-400/90 font-medium">
+                      {item.userName}
+                    </span>
+                    <span className="text-white/40 text-xs">
+                      {new Date(item.createdAt).toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-white/90 mt-1">{item.content}</p>
+                </div>
+              );
+            } else {
+              // Render poll
+              return (
+                <PollMessage
+                  key={item.id}
+                  poll={item as Poll}
+                  roomCode={roomCode}
+                />
+              );
+            }
+          })}
         <div ref={messagesEndRef} />
       </div>
 
