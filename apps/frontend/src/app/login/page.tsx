@@ -1,52 +1,44 @@
 "use client";
-import { signIn, useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import LoginForm from "@/components/custom/login/LoginForm";
+import Image from "next/image";
+import img2 from "../../../public/login.jpg";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { data: session, status } = useSession();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    if (res?.error) {
-      setError("Invalid email or password");
-    } else {
-      router.push("/createjoin");
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      toast.error(`You are already logged in`);
-      router.push("/createjoin");
-    }
-  }, [status, router]);
-  if (status === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        Loading...
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-5xl grid md:grid-cols-2 bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-8 flex flex-col justify-center">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Holla,</h1>
+            <h2 className="text-3xl font-bold mb-4">Welcome Back</h2>
+            <p className="text-gray-500">Login to Spoontify</p>
+          </div>
+
+          <LoginForm />
+
+          <div className="mt-6 text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <a href="/" className="text-purple-600 font-medium hover:underline">
+              Sign Up
+            </a>
+          </div>
+        </div>
+
+        <div className="hidden md:block bg-purple-500 relative">
+          <div className="absolute inset-0 flex items-center justify-center ">
+            <Image
+              src={img2}
+              alt="Login illustration"
+              className="min-h-full min-w-full "
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <div className="p-6 bg-white rounded-lg shadow-lg w-96">
         <h2 className="text-xl font-semibold mb-4">Login</h2>
         {error && <p className="text-red-500">{error}</p>}
@@ -85,6 +77,4 @@ export default function LoginPage() {
           </p>
         </form>
       </div>
-    </div>
-  );
-}
+    </div>*/
