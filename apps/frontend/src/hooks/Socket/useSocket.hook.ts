@@ -14,6 +14,25 @@ export type SocketResponse = {
   message?: string;
 };
 
+export type Poll = {
+  id: string;
+  trackId: string;
+  songName: string;
+  artistName: string | string[];
+  albumName: string;
+  imageUrl: string;
+  createdById: string;
+  createdByName: string;
+  createdAt: string;
+  closed: boolean;
+  votes: {
+    userId: string;
+    userName: string;
+    vote: boolean;
+    createdAt: string;
+  }[];
+};
+
 export const useSocket = (roomCode?: string) => {
   const { data: session } = useSession();
   const router = useRouter();
@@ -25,8 +44,8 @@ export const useSocket = (roomCode?: string) => {
   >([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [polls, setPolls] = useState<Poll[]>([]);
 
-  // Check session readiness
   useEffect(() => {
     if (session?.user?.userId) {
       setIsSessionReady(true);
@@ -98,13 +117,57 @@ export const useSocket = (roomCode?: string) => {
       setConnectedUsers(participants);
     };
 
+    const handlePollCreated = (poll: Poll) => {
+      setPolls((prev) => [...prev, poll]);
+    };
+
+    const handlePollUpdated = (data: {
+      pollId: string;
+      votes: {
+        userId: string;
+        userName: string;
+        vote: boolean;
+        createdAt: string;
+      }[];
+    }) => {
+      setPolls((prev) =>
+        prev.map((poll) =>
+          poll.id === data.pollId ? { ...poll, votes: data.votes } : poll
+        )
+      );
+    };
+
+    const handlePollClosed = (data: {
+      pollId: string;
+      yesPercentage: number;
+      addedToQueue: boolean;
+    }) => {
+      setPolls((prev) =>
+        prev.map((poll) =>
+          poll.id === data.pollId ? { ...poll, closed: true } : poll
+        )
+      );
+      toast.info(
+        data.addedToQueue
+          ? `Poll closed: Song added to queue (${data.yesPercentage.toFixed(1)}% Yes)`
+          : `Poll closed: Song not added (${data.yesPercentage.toFixed(1)}% Yes)`
+      );
+    };
+
+    const handlePollHistory = (polls: Poll[]) => {
+      setPolls(polls);
+    };
+
     socketInstance.on("connect", () => console.log("Socket connected"));
     socketInstance.on("userJoined", handleUserJoined);
     socketInstance.on("participantsUpdated", handleParticipantsUpdated);
     socketInstance.on("roomClosed", handleRoomClosed);
     socketInstance.on("userLeft", handleUserLeft);
+    socketInstance.on("pollCreated", handlePollCreated);
+    socketInstance.on("pollUpdated", handlePollUpdated);
+    socketInstance.on("pollClosed", handlePollClosed);
+    socketInstance.on("pollHistory", handlePollHistory);
 
-    // Join the room if roomCode is provided
     if (roomCode) {
       socketInstance.emit("joinRoom", roomCode, (response: SocketResponse) => {
         if (response.error) {
@@ -124,6 +187,10 @@ export const useSocket = (roomCode?: string) => {
       socketInstance.off("participantsUpdated", handleParticipantsUpdated);
       socketInstance.off("roomClosed", handleRoomClosed);
       socketInstance.off("userLeft", handleUserLeft);
+      socketInstance.off("pollCreated", handlePollCreated);
+      socketInstance.off("pollUpdated", handlePollUpdated);
+      socketInstance.off("pollClosed", handlePollClosed);
+      socketInstance.off("pollHistory", handlePollHistory);
       socketInstance.disconnect();
     };
   }, [isSessionReady, session, roomCode, router]);
@@ -210,6 +277,54 @@ export const useSocket = (roomCode?: string) => {
     );
   };
 
+  const createPoll = (
+    roomCode: string,
+    track: {
+      trackId: string;
+      songName: string;
+      artistName: string | string[];
+      albumName: string;
+      imageUrl: string;
+    },
+    callback?: (response: SocketResponse & { pollId?: string }) => void
+  ) => {
+    if (!socketRef.current) {
+      toast.error("Socket not initialized");
+      return;
+    }
+    socketRef.current.emit("createPoll", { roomCode, track }, callback);
+  };
+
+  const votePoll = (
+    roomCode: string,
+    pollId: string,
+    vote: boolean,
+    callback?: (response: SocketResponse) => void
+  ) => {
+    if (!socketRef.current) {
+      toast.error("Socket not initialized");
+      return;
+    }
+    socketRef.current.emit("votePoll", { roomCode, pollId, vote }, callback);
+  };
+
+  const closePoll = (
+    roomCode: string,
+    pollId: string,
+    callback?: (
+      response: SocketResponse & {
+        yesPercentage?: number;
+        addedToQueue?: boolean;
+      }
+    ) => void
+  ) => {
+    if (!socketRef.current) {
+      toast.error("Socket not initialized");
+      return;
+    }
+    socketRef.current.emit("closePoll", { roomCode, pollId }, callback);
+  };
+
   return {
     socket: socketRef.current,
     isOwner,
@@ -223,5 +338,9 @@ export const useSocket = (roomCode?: string) => {
     createRoom,
     handleJoinRoom,
     leaveRoom,
+    polls,
+    createPoll,
+    votePoll,
+    closePoll,
   };
 };
