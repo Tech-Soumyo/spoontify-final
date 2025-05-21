@@ -1,3 +1,4 @@
+// joinedRoom/[roomCode]/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -600,7 +601,6 @@ export default function JoinedRoomPage() {
     if (roomCode) fetchQueueAndVerifyRoom();
   }, [roomCode, router]);
 
-  // Debug connected users
   useEffect(() => {
     console.log("Connected users in JoinedRoomPage:", connectedUsers);
     console.log("Connected users length:", connectedUsers.length);
@@ -617,16 +617,14 @@ export default function JoinedRoomPage() {
         quality={100}
       />
 
-      {/* Blur Overlay */}
       {showSearchResults && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-40" />
       )}
 
-      {/* Content Container with glass effect overlay */}
       <div className="relative h-full min-h-screen bg-white/10">
         <div className="container mx-auto p-6">
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Sidebar with queue section & play section */}
+            {/* Sidebar with queue & play */}
             <div className="backdrop-blur-md bg-black/30 rounded-2xl w-full lg:w-[400px] h-auto lg:min-h-[90vh] border border-white/30 shadow-xl flex flex-col">
               <div className="p-4 border-b border-white/20">
                 <h1 className="text-2xl font-bold text-white/90 text-center">
@@ -634,7 +632,6 @@ export default function JoinedRoomPage() {
                 </h1>
               </div>
 
-              {/* Leave Room Button and Copy Code Button */}
               <div className="p-4 flex justify-center items-center gap-4">
                 <button
                   onClick={() => {
@@ -676,7 +673,7 @@ export default function JoinedRoomPage() {
                 </button>
               </div>
 
-              {/* Queue Section - with scrollable area */}
+              {/* Queue Section */}
               <div className="flex-1 overflow-hidden mt-10 min-h-0">
                 <QueueSection
                   queue={queue}
@@ -686,7 +683,7 @@ export default function JoinedRoomPage() {
                 />
               </div>
 
-              {/* Now Playing Section - Moved to bottom */}
+              {/* Now Playing Section */}
               <div className="p-4 mt-auto border-t border-white/20 mb-4 ">
                 <NowPlaying
                   currentTrack={currentTrack}
@@ -702,7 +699,6 @@ export default function JoinedRoomPage() {
               </div>
             </div>
 
-            {/* Main Content Area */}
             <div className="flex-1 flex flex-col gap-4">
               {/* Search Section */}
               <div className="backdrop-blur-md bg-black/20 rounded-2xl w-full border border-white/30 shadow-xl relative z-50 mb-8">
@@ -713,6 +709,7 @@ export default function JoinedRoomPage() {
                   loading={searchLoading}
                   error={searchError}
                   onShowResultsChange={setShowSearchResults}
+                  roomCode={roomCode!} // Pass roomCode prop
                 />
               </div>
 
