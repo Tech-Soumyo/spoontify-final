@@ -1,7 +1,10 @@
+// searchSection.tsx
 "use client";
 
 import { track } from "@/hooks/useSpotySong";
+import { useSocket } from "@/hooks/Socket/useSocket.hook"; // Import useSocket
 import { useState } from "react";
+import { toast } from "sonner"; // Import toast for notifications
 
 type SearchSectionProps = {
   onSearch: (query: string) => void;
@@ -10,6 +13,7 @@ type SearchSectionProps = {
   loading: boolean;
   error: string | null;
   onShowResultsChange?: (showing: boolean) => void;
+  roomCode: string; // Add roomCode prop
 };
 
 export const SearchSection: React.FC<SearchSectionProps> = ({
@@ -19,7 +23,9 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
   loading,
   error,
   onShowResultsChange,
+  roomCode, // Destructure roomCode
 }) => {
+  const { createPoll } = useSocket(roomCode); // Use useSocket with roomCode
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
 
@@ -34,6 +40,26 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
     setShowResults(false);
     setQuery("");
     onShowResultsChange?.(false);
+  };
+
+  const handleCreatePoll = (track: track) => {
+    createPoll(
+      roomCode,
+      {
+        trackId: track.id,
+        songName: track.name,
+        artistName: track.artists.map((a) => a.name),
+        albumName: track.album.name,
+        imageUrl: track.album.imageUrl,
+      },
+      (response) => {
+        if (response.error) {
+          toast.error(response.error);
+        } else {
+          toast.success(`Poll created for ${track.name}`);
+        }
+      }
+    );
   };
 
   return (
@@ -107,12 +133,20 @@ export const SearchSection: React.FC<SearchSectionProps> = ({
                       {result.artists.map((artist) => artist.name).join(", ")}
                     </p>
                   </div>
-                  <button
-                    onClick={() => onAddToQueue(result)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white/90 px-4 py-1.5 rounded-full text-sm font-medium"
-                  >
-                    Add to Queue
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onAddToQueue(result)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/10 hover:bg-white/20 text-white/90 px-4 py-1.5 rounded-full text-sm font-medium"
+                    >
+                      Add to Queue
+                    </button>
+                    <button
+                      onClick={() => handleCreatePoll(result)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 px-4 py-1.5 rounded-full text-sm font-medium"
+                    >
+                      Create Poll
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
