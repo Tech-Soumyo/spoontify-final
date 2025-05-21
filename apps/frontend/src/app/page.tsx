@@ -5,6 +5,9 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { toast } from "sonner";
+import SignUpForm from "@/components/custom/signup/SignupForm";
+import Image from "next/image";
+import img2 from "../../public/login.jpg";
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -73,7 +76,43 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+      <div className="w-full max-w-5xl grid md:grid-cols-2 bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-8 flex flex-col justify-center">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Holla,</h1>
+            <h2 className="text-3xl font-bold mb-4">Welcome Back</h2>
+            <p className="text-gray-500">Login to Spoontify</p>
+          </div>
+
+          <SignUpForm />
+
+          <div className="mt-6 text-center text-sm">
+            Don&apos;t have an account?{" "}
+            <a
+              href="/login"
+              className="text-purple-600 font-medium hover:underline"
+            >
+              Sign In
+            </a>
+          </div>
+        </div>
+
+        <div className="hidden md:block bg-purple-500 relative">
+          <div className="absolute inset-0 flex items-center justify-center ">
+            <Image
+              src={img2}
+              alt="Login illustration"
+              className="min-h-full min-w-full "
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/*<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-center">Sign Up</h2>
       {message && <p className="text-center mt-2 text-red-500">{message}</p>}
       <form onSubmit={handleSubmit} className="mt-4">
@@ -148,6 +187,4 @@ export default function SignupPage() {
           </button>
         </p>
       </form>
-    </div>
-  );
-}
+    </div>*/
