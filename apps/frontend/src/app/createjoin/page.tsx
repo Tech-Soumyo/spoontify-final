@@ -55,7 +55,7 @@ export default function CreateJoinRoom() {
           onClick={() => {
             signOut({ redirect: false });
             console.log("Sign out");
-            router.push("/");
+            router.push("/login");
           }}
           className="bg-red-700"
         >
