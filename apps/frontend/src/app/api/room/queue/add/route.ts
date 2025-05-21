@@ -1,3 +1,4 @@
+// api/room/queue/add/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@repo/db";
 import { getServerSession } from "next-auth";
@@ -63,7 +64,9 @@ export async function POST(request: NextRequest) {
           duration_ms = retryRes.data?.duration_ms ?? 0;
         }
       }
-    } // Check if the track is currently in the queue
+    }
+
+    // Check if the track is currently in the queue
     const existingTrack = await prisma.queueEntry.findFirst({
       where: {
         roomId: room.id,
@@ -99,7 +102,9 @@ export async function POST(request: NextRequest) {
           roomId: room.id,
           trackId: track.trackId,
           songName: track.songName,
-          artistName: track.artistName,
+          artistName: Array.isArray(track.artistName)
+            ? track.artistName
+            : [track.artistName], // Ensure artistName is an array
           albumName: track.albumName,
           imageUrl: track.imageUrl,
           addedById: session.user?.userId!,
@@ -119,8 +124,15 @@ export async function POST(request: NextRequest) {
       id: entry.trackId,
       name: entry.songName,
       artists: Array.isArray(entry.artistName)
-        ? (entry.artistName as string[]).map((name: string) => ({ name }))
-        : [{ name: entry.artistName as string }],
+        ? entry.artistName.map((name) => ({
+            name: typeof name === "string" ? name : "",
+          }))
+        : [
+            {
+              name:
+                typeof entry.artistName === "string" ? entry.artistName : "",
+            },
+          ],
       album: {
         name: entry.albumName,
         imageUrl: entry.imageUrl || "",
@@ -130,7 +142,8 @@ export async function POST(request: NextRequest) {
       duration_ms: entry.durationMs || 0,
       preview_url: "",
       popularity: 0,
-    })); // Return the updated queue - socket events will be handled by the client
+    }));
+
     return NextResponse.json({ queue: formattedQueue }, { status: 200 });
   } catch (error) {
     console.log("Add to queue error:", error);
