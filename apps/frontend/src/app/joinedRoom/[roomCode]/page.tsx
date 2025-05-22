@@ -1,4 +1,3 @@
-// joinedRoom/[roomCode]/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -11,14 +10,13 @@ import { searchSongs } from "@/hooks/useSpotifySearch";
 import axios from "axios";
 import Image from "next/image";
 import img from "../../../../public/interior.jpg";
-
-// Import components
+import { getAverageColor } from "@/utils/imageAverageColor";
+import refreshSpotifyToken from "@/hooks/refreshToaken";
+import { CirclePower } from "lucide-react";
+import { NowPlaying } from "@/components/custom/glass/NowPlaying2";
 import { QueueSection } from "@/components/custom/glass/QueueSection";
 import { SearchSection } from "@/components/custom/glass/SearchSection2";
-import { NowPlaying } from "@/components/custom/glass/NowPlaying2";
 import { ChatSection } from "@/components/custom/glass/ChatSection2";
-import { CirclePower } from "lucide-react";
-import refreshSpotifyToken from "@/hooks/refreshToaken";
 
 export default function JoinedRoomPage() {
   const params = useParams();
@@ -33,6 +31,7 @@ export default function JoinedRoomPage() {
   const [searchResults, setSearchResults] = useState<track[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // queue
   const [queue, setQueue] = useState<track[]>([]);
@@ -48,7 +47,37 @@ export default function JoinedRoomPage() {
   const lastPlayedTrackIdRef = useRef<string | null>(null);
   const isPlayingTrackRef = useRef<boolean>(false);
 
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  // Background color state
+  const [backgroundColor, setBackgroundColor] =
+    useState<string>("rgba(0, 0, 0, 0.5)");
+
+  // Extract average color from album cover
+  useEffect(() => {
+    if (!currentTrack || !currentTrack.album.imageUrl) {
+      setBackgroundColor("rgba(0, 0, 0, 0.5)"); // Fallback color
+      return;
+    }
+
+    const img = new window.Image();
+    img.crossOrigin = "Anonymous"; // Handle cross-origin images
+    img.src = currentTrack.album.imageUrl;
+
+    img.onload = async () => {
+      try {
+        const color = await getAverageColor(img);
+        const rgbColor = `rgba(${color.r}, ${color.g}, ${color.b}, 0.5)`; // Add opacity
+        setBackgroundColor(rgbColor);
+      } catch (error) {
+        console.error("Error extracting color:", error);
+        setBackgroundColor("rgba(0, 0, 0, 0.5)");
+      }
+    };
+
+    img.onerror = () => {
+      console.error("Failed to load album cover image");
+      setBackgroundColor("rgba(0, 0, 0, 0.5)");
+    };
+  }, [currentTrack]);
 
   useEffect(() => {
     if (session?.error) {
@@ -615,6 +644,15 @@ export default function JoinedRoomPage() {
         fill
         className="object-cover"
         quality={100}
+      />
+
+      {/* Dynamic Background Overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundColor: backgroundColor,
+          transition: "background-color 0.5s ease",
+        }}
       />
 
       {showSearchResults && (
