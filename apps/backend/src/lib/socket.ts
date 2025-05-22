@@ -191,6 +191,7 @@ const activeRooms = new Set<string>();
               userId: msg.userId,
               userName: msg.user.name,
               content: msg.content,
+              imageUrl: msg.imageUrl,
               createdAt: msg.createdAt,
             }))
           );
@@ -352,7 +353,10 @@ const activeRooms = new Set<string>();
 
       socket.on(
         "sendMessage",
-        async (data: { roomCode: string; message: string }, callback) => {
+        async (
+          data: { roomCode: string; message?: string; imageUrl?: string },
+          callback
+        ) => {
           try {
             const user = (socket.data as SocketData).user;
             const room = await prisma.room.findUnique({
@@ -371,10 +375,18 @@ const activeRooms = new Set<string>();
               return callback({ error: "You are not in this room" });
             }
 
-            if (!data.message.trim() || data.message.length > 500) {
+            // Validate message or image
+            if (
+              (!data.message || data.message.trim() === "") &&
+              (!data.imageUrl || data.imageUrl.trim() === "")
+            ) {
               return callback({
-                error:
-                  "Invalid message: must be non-empty and under 500 characters",
+                error: "Message or image must be provided",
+              });
+            }
+            if (data.message && data.message.length > 500) {
+              return callback({
+                error: "Message must be under 500 characters",
               });
             }
 
@@ -382,7 +394,8 @@ const activeRooms = new Set<string>();
               data: {
                 roomId: room.id,
                 userId: user.userId,
-                content: data.message,
+                content: data.message || null,
+                imageUrl: data.imageUrl || null,
               },
             });
 
@@ -391,6 +404,7 @@ const activeRooms = new Set<string>();
               userId: user.userId,
               userName: user.name,
               content: chatMessage.content,
+              imageUrl: chatMessage.imageUrl,
               createdAt: chatMessage.createdAt,
             });
 
