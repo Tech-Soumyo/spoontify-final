@@ -1,15 +1,16 @@
-// chatSection.tsx
 "use client";
 import { useSocket, Poll } from "@/hooks/Socket/useSocket.hook";
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import axios from "axios";
 
 interface ChatMessage {
   id: string;
   userId: string;
   userName: string;
-  content: string;
+  content: string | null;
+  imageUrl: string | null;
   createdAt: string;
 }
 
@@ -112,9 +113,11 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
   const { socket, connectedUsers, isOwner, polls } = useSocket(roomCode);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
+  const [image, setImage] = useState<File | null>(null);
   const [showParticipants, setShowParticipants] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const participantsRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Close participants dropdown when clicking outside
   useEffect(() => {
@@ -156,21 +159,48 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, polls]);
 
+  // Handle image selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+    }
+  };
+
   // Handle sending a message
-  const handleSendMessage = () => {
-    if (!newMessage.trim()) {
-      toast.error("Message cannot be empty");
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() && !image) {
+      toast.error("Please enter a message or select an image");
       return;
+    }
+
+    let imageUrl: string | undefined;
+
+    if (image) {
+      try {
+        const formData = new FormData();
+        formData.append("image", image);
+        const response = await axios.post("/api/room/image", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        imageUrl = response.data.imageUrl;
+      } catch (error) {
+        toast.error("Failed to upload image");
+        return;
+      }
     }
 
     socket?.emit(
       "sendMessage",
-      { roomCode, message: newMessage },
+      { roomCode, message: newMessage.trim() || undefined, imageUrl },
       (response: any) => {
         if (response.error) {
           toast.error(response.error);
         } else {
           setNewMessage("");
+          setImage(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
         }
       }
     );
@@ -250,7 +280,6 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
           )}
         </div>
       </div>
-
       {/* Messages and Polls Section */}
       <div className="flex-1 space-y-4 p-4 overflow-y-auto max-h-[calc(70vh-80px)]">
         {[...messages, ...polls]
@@ -278,7 +307,18 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
                       })}
                     </span>
                   </div>
-                  <p className="text-white/90 mt-1">{item.content}</p>
+                  {item.content && (
+                    <p className="text-white/90 mt-1">{item.content}</p>
+                  )}{" "}
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt="Chat image"
+                      className="mt-2 max-w-[200px] h-auto rounded-md hover:opacity-90 transition-opacity cursor-pointer"
+                      onClick={() => window.open(item.imageUrl!, "_blank")}
+                      loading="lazy"
+                    />
+                  )}
                 </div>
               );
             } else {
@@ -293,9 +333,28 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
             }
           })}
         <div ref={messagesEndRef} />
-      </div>
-
+      </div>{" "}
       <div className="p-4 border-t border-white/10">
+        {image && (
+          <div className="mb-2 relative inline-block">
+            <img
+              src={URL.createObjectURL(image)}
+              alt="Preview"
+              className="h-20 w-auto rounded-md border border-white/20"
+            />
+            <button
+              onClick={() => {
+                setImage(null);
+                if (fileInputRef.current) {
+                  fileInputRef.current.value = "";
+                }
+              }}
+              className="absolute -top-2 -right-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             type="text"
@@ -305,6 +364,16 @@ export function ChatSection({ roomCode }: { roomCode: string }) {
             placeholder="Type a message..."
             className="flex-1 bg-white/5 text-white/90 placeholder-white/40 rounded-lg px-4 py-2 border border-white/10 focus:outline-none focus:border-white/30 transition-colors"
           />
+          <label className="bg-white/5 hover:bg-white/10 text-white/90 px-4 py-2 rounded-lg cursor-pointer border border-white/10 transition-colors">
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={handleImageChange}
+              ref={fileInputRef}
+              className="hidden"
+            />
+            📷
+          </label>
           <button
             onClick={handleSendMessage}
             className="bg-white/10 hover:bg-white/20 text-white/90 px-6 py-2 rounded-lg font-medium transition-colors"
