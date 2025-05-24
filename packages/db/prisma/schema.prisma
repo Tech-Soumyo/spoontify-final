@@ -69,7 +69,8 @@ model QueueEntry {
 
 model ChatMessage {
   id        String   @id @default(uuid())
-  content   String
+  content   String?
+  imageUrl  String?  @db.VarChar(2048)  // New field for image URL
   userId    String
   roomId    String
   createdAt DateTime @default(now())
