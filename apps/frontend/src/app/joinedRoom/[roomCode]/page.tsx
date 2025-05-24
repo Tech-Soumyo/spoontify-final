@@ -47,35 +47,54 @@ export default function JoinedRoomPage() {
   const lastPlayedTrackIdRef = useRef<string | null>(null);
   const isPlayingTrackRef = useRef<boolean>(false);
 
-  // Background color state
-  const [backgroundColor, setBackgroundColor] =
-    useState<string>("rgba(0, 0, 0, 0.5)");
+  // Background style state
+  const [backgroundStyle, setBackgroundStyle] = useState<React.CSSProperties>({
+    background: "linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.2) 100%)",
+    transition: "all 1s ease-in-out",
+    backdropFilter: "blur(8px)"
+  });
 
   // Extract average color from album cover
   useEffect(() => {
     if (!currentTrack || !currentTrack.album.imageUrl) {
-      setBackgroundColor("rgba(0, 0, 0, 0.5)"); // Fallback color
+      setBackgroundStyle({
+        background: "linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.2) 100%)",
+        transition: "all 1s ease-in-out",
+        backdropFilter: "blur(8px)"
+      });
       return;
     }
 
     const img = new window.Image();
-    img.crossOrigin = "Anonymous"; // Handle cross-origin images
+    img.crossOrigin = "Anonymous";
     img.src = currentTrack.album.imageUrl;
 
     img.onload = async () => {
       try {
         const color = await getAverageColor(img);
-        const rgbColor = `rgba(${color.r}, ${color.g}, ${color.b}, 0.5)`; // Add opacity
-        setBackgroundColor(rgbColor);
+        const newStyle: React.CSSProperties = {
+          background: color.gradient,
+          transition: "all 1s ease-in-out",
+          backdropFilter: `blur(8px) ${color.brightness > 0.7 ? "brightness(0.7)" : ""}`
+        };
+        setBackgroundStyle(newStyle);
       } catch (error) {
         console.error("Error extracting color:", error);
-        setBackgroundColor("rgba(0, 0, 0, 0.5)");
+        setBackgroundStyle({
+          background: "linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.2) 100%)",
+          transition: "all 1s ease-in-out",
+          backdropFilter: "blur(8px)"
+        });
       }
     };
 
     img.onerror = () => {
       console.error("Failed to load album cover image");
-      setBackgroundColor("rgba(0, 0, 0, 0.5)");
+      setBackgroundStyle({
+        background: "linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 50%, rgba(0, 0, 0, 0.2) 100%)",
+        transition: "all 1s ease-in-out",
+        backdropFilter: "blur(8px)"
+      });
     };
   }, [currentTrack]);
 
@@ -649,10 +668,7 @@ export default function JoinedRoomPage() {
       {/* Dynamic Background Overlay */}
       <div
         className="absolute inset-0"
-        style={{
-          backgroundColor: backgroundColor,
-          transition: "background-color 0.5s ease",
-        }}
+        style={backgroundStyle}
       />
 
       {showSearchResults && (
