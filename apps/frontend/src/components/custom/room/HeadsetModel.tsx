@@ -37,9 +37,9 @@ const HeadsetModel: React.FC = () => {
       {/* Softer, more balanced lighting setup */}
       <directionalLight position={[5, 5, 5]} intensity={0.6} />
       <directionalLight position={[-5, -5, -5]} intensity={0.4} />
-      <hemisphereLight intensity={0.5} groundColor="#000000" />
+      <hemisphereLight intensity={0.5} groundColor="#088F8F" />
       {/* Reduced ambient light intensity */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.9} />
     </group>
   );
 };
